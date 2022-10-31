@@ -10,12 +10,13 @@ Mais detalhes no site da disciplina:
 
 Integrantes:
 
-- Nome 
-- Nome
+- Mathues Silva Melo Oliveira
+- Nívea de Abreu Dantas Lima
+- Ykaro de Sousa Andrade
 
 Nome da marca:
 
-- Nome e logo?
+- Cicle People
 
 ## Interface
 
