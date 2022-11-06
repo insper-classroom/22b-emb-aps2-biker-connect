@@ -4,9 +4,13 @@
 
 #include <asf.h>
 #include <string.h>
+#include "ASF/thirdparty/lvgl8/src/font/lv_font.h"
 #include "ili9341.h"
 #include "lvgl.h"
 #include "touch/touch.h"
+#include "tela1.h"
+#include "tela2.h"
+#include "tela3.h"
 
 /************************************************************************/
 /* LCD / LVGL                                                           */
@@ -63,28 +67,26 @@ static void event_handler(lv_event_t * e) {
 		LV_LOG_USER("Toggled");
 	}
 }
+lv_obj_t * meter;
+
+static void set_value(void * indic, int32_t v)
+{
+	lv_meter_set_indicator_end_value(meter, indic, v);
+}
+
+static const lv_img_dsc_t * anim_imgs[3] = {
+	&tela1,
+	&tela2,
+	&tela3,
+};
 
 void lv_ex_btn_1(void) {
-	lv_obj_t * label;
-
-	lv_obj_t * btn1 = lv_btn_create(lv_scr_act());
-	lv_obj_add_event_cb(btn1, event_handler, LV_EVENT_ALL, NULL);
-	lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -40);
-
-	label = lv_label_create(btn1);
-	lv_label_set_text(label, "Corsi");
-	lv_obj_center(label);
-
-	lv_obj_t * btn2 = lv_btn_create(lv_scr_act());
-	lv_obj_add_event_cb(btn2, event_handler, LV_EVENT_ALL, NULL);
-	lv_obj_align(btn2, LV_ALIGN_CENTER, 0, 40);
-	lv_obj_add_flag(btn2, LV_OBJ_FLAG_CHECKABLE);
-	lv_obj_set_height(btn2, LV_SIZE_CONTENT);
-
-	label = lv_label_create(btn2);
-	lv_label_set_text(label, "Toggle");
-	lv_obj_center(label);
-}
+	lv_obj_t * animimg0 = lv_animimg_create(lv_scr_act());
+	lv_obj_center(animimg0);
+	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 3);
+	lv_animimg_set_duration(animimg0, 10000);
+	lv_animimg_set_repeat_count(animimg0, LV_ANIM_REPEAT_INFINITE);
+	lv_animimg_start(animimg0);}
 
 /************************************************************************/
 /* TASKS                                                                */

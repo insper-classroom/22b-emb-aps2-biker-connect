@@ -10,20 +10,50 @@ Mais detalhes no site da disciplina:
 
 Integrantes:
 
-- Mathues Silva Melo Oliveira
-- Nívea de Abreu Dantas Lima
-- Ykaro de Sousa Andrade
-
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/matheus-1618"><img style="border-radius: 50%;" src="https://avatars.githubusercontent.com/matheus-1618" width="100px;" alt=""/><br /><sub><b>Matheus Oliveira</b></sub></a><br /><a href="https://github.com/matheus-1618" title="Matheus Silva M. Oliveira"></a> Developer</td>
+   <td align="center"><a href="https://github.com/niveaabreu"><img style="border-radius: 50%;" src="https://avatars.githubusercontent.com/niveaabreu" width="100px;" alt=""/><br /><sub><b>Nívea de Abreu</b></sub></a><br /><a href="https://github.com/niveaabreu" title="Nívea de Abreu"></a>Developer</td>
+   <td align="center"><a href="https://github.com/ykarodeandrade"><img style="border-radius: 50%;" src="https://avatars.githubusercontent.com/ykarodeandrade" width="100px;" alt=""/><br /><sub><b>Ykaro de Andrade</b></sub></a><br /><a href="https://github.com/ykarodeandrade" title="Ykaro de Andrade"></a> Developer</td>
+  </tr>
+</table>
+</div>
 Nome da marca:
 
-- Cicle People
+<div align="center" style="max-width:68rem;">
+
+![image](assets/large_bikerconnect_0.png)
+</div>
 
 ## Interface
 
 ### Proposta UX 1 - C
+* [Vídeo explicando interface](https://www.youtube.com/watch?v=jwVLnyf8rFs)
+* [Wigdets explicados aqui](https://app.mural.co/t/elementos9119/m/elementos9119/1667235687917/3f8bd861be517222390240d3b949be1fcf0a9fb7?sender=b72dc7a3-4993-41ce-ae83-0c04221a56ec)
+* Telas disponíveis:
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/tela4.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/tela5.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/tela6.png" style="width:48rem"></td>
+  </tr>
+</table>
+</div>
 
+* Tela estática:
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/tela1.jpeg" style="size:48rem"></td>
+    <td align="center"> <img src="assets/tela2.jpeg" style="size:48px"></td>
+    <td align="center"> <img src="assets/tela3.jpeg" style="size:48px"></td>
+  </tr>
+</table>
+</div>
 > - Mockup da interface:
->    - Satisfaz todos os requisitos do projeto
+>    - Satisfaz todos os requisitos do projeto 
 >    - Indica quais são os widgets do LVGL 
 >    - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
 > - Grava um vídeo explicando a interface
