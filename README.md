@@ -29,7 +29,8 @@ Nome da marca:
 ## Interface
 
 ### Proposta UX 1 - C
-* [Vídeo explicando interface](https://www.youtube.com/watch?v=jwVLnyf8rFs)
+## [Vídeo explicando interface](https://www.youtube.com/watch?v=jwVLnyf8rFs)
+
 * [Wigdets explicados aqui](https://app.mural.co/t/elementos9119/m/elementos9119/1667235687917/3f8bd861be517222390240d3b949be1fcf0a9fb7?sender=b72dc7a3-4993-41ce-ae83-0c04221a56ec)
 * Telas disponíveis:
 <div align="center" style="max-width:68rem;">
@@ -72,6 +73,9 @@ Descricão da primeira proposta da interface:
 > - Grava um vídeo atualizado explicando o que foi sugerido e o que fizeram para melhorar a interface
 > - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
 
+## [Vídeo apresentando display aprimorado](https://youtu.be/JXlG2QjE9qY)
+
+
 Fontes utilizadas:
 * Montserrat 46
 * Montserrat 32
@@ -111,7 +115,7 @@ Fontes utilizadas:
 </table>
 </div>
 
-Detalhes da segunda interação da proposta de interface:
+**Detalhes da segunda interação da proposta de interface:**
 
 Foi adiciona uma distância diária percorrida pelo ciclista. Ademais, aumentou-se a fonte dos números de velocidade, distância e cronômetro em relação a unidades para facilitar a visualização. Trocou-se também a maneira de troca do aro para um roller para usar-se medidas mais comuns no mercado.
 
