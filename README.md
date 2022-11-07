@@ -90,7 +90,7 @@ Fontes utilizadas:
 
 [Entrevista com Luiz](https://drive.google.com/file/d/1sjpz7W0YbgtZXLlP62kvtFch1v9C1n1c/view?usp=sharing)
 
-<img src="assets/luiz.jpeg" style="width:12rem">
+<img src="assets/LUIZ.jpeg" style="width:12rem">
 
 </div>
 
