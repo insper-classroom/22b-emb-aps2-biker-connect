@@ -66,23 +66,55 @@ Descricão da primeira proposta da interface:
 - Vídeo explicando a interface
 
 ### Proposta UX 2 - B
-
 > - Especifica e justifica quais vão ser as fontes (e tamanhos) a serem usadas na interface.
 > - Pega feedback com o Luiz do Fablab e incorpora na interface
 >   - Grava em vídeo a entrevista
 > - Grava um vídeo atualizado explicando o que foi sugerido e o que fizeram para melhorar a interface
 > - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
 
+Fontes utilizadas:
+* Montserrat 46
+* Montserrat 32
+* Montserrat 28
+* Montserrat 16
+
+<div align="center" style="max-width:68rem;">
+<img src="assets/fontes.jpeg">
+</div>
+
+<div align="center" style="max-width:68rem;">
+
+[Entrevista com Luiz](https://drive.google.com/file/d/1sjpz7W0YbgtZXLlP62kvtFch1v9C1n1c/view?usp=sharing)
+
+<img src="assets/luiz.jpeg" style="width:12rem">
+
+</div>
+
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/tela10.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/tela11.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/tela12.png" style="width:48rem"></td>
+  </tr>
+</table>
+</div>
+
+* Tela estática:
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/estatica1.jpeg" style="size:48rem"></td>
+    <td align="center"> <img src="assets/estatica2.jpeg" style="size:48px"></td>
+    <td align="center"> <img src="assets/estatica3.jpeg" style="size:48px"></td>
+  </tr>
+</table>
+</div>
+
 Detalhes da segunda interação da proposta de interface:
 
-<!-- 
- Adicionar texto descrevendo a evolução 
- da interface
--->
+Foi adiciona uma distância diária percorrida pelo ciclista. Ademais, aumentou-se a fonte dos números de velocidade, distância e cronômetro em relação a unidades para facilitar a visualização. Trocou-se também a maneira de troca do aro para um roller para usar-se medidas mais comuns no mercado.
 
-- Imagem da proposta
-- Imagem da proposta no LCD
-- Vídeo
 
 ### Proposta UX 3 - A
 

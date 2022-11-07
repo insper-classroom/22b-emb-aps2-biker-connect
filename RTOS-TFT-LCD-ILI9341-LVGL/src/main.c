@@ -11,6 +11,9 @@
 #include "tela1.h"
 #include "tela2.h"
 #include "tela3.h"
+#include "tela7.h"
+#include "tela8.h"
+#include "tela9.h"
 
 /************************************************************************/
 /* LCD / LVGL                                                           */
@@ -75,9 +78,9 @@ static void set_value(void * indic, int32_t v)
 }
 
 static const lv_img_dsc_t * anim_imgs[3] = {
-	&tela1,
-	&tela2,
-	&tela3,
+	&tela7,
+	&tela8,
+	&tela9,
 };
 
 void lv_ex_btn_1(void) {
