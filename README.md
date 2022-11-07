@@ -53,25 +53,11 @@ Nome da marca:
   </tr>
 </table>
 </div>
-> - Mockup da interface:
->    - Satisfaz todos os requisitos do projeto 
->    - Indica quais são os widgets do LVGL 
->    - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
-> - Grava um vídeo explicando a interface
 
 
-Descricão da primeira proposta da interface:
 
-- Imagem da proposta
-- Imagem da proposta no LCD
-- Vídeo explicando a interface
 
 ### Proposta UX 2 - B
-> - Especifica e justifica quais vão ser as fontes (e tamanhos) a serem usadas na interface.
-> - Pega feedback com o Luiz do Fablab e incorpora na interface
->   - Grava em vídeo a entrevista
-> - Grava um vídeo atualizado explicando o que foi sugerido e o que fizeram para melhorar a interface
-> - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
 
 ## [Vídeo apresentando display aprimorado](https://youtu.be/JXlG2QjE9qY)
 
@@ -88,20 +74,10 @@ Fontes utilizadas:
 
 <div align="center" style="max-width:68rem;">
 
-[Entrevista com Luiz](https://drive.google.com/file/d/1sjpz7W0YbgtZXLlP62kvtFch1v9C1n1c/view?usp=sharing)
+## [Entrevista com Luiz](https://drive.google.com/file/d/1zHFypN0bQBcuKHC9F2LxCIoxlhUTrHDv/view?usp=sharing)
 
 <img src="assets/LUIZ.jpeg" style="width:12rem">
 
-</div>
-
-<div align="center" style="max-width:68rem;">
-<table>
-  <tr>
-    <td align="center"> <img src="assets/tela10.png" style="width:48rem"></td>
-    <td align="center"> <img src="assets/tela11.png" style="width:48rem"></td>
-    <td align="center"> <img src="assets/tela12.png" style="width:48rem"></td>
-  </tr>
-</table>
 </div>
 
 * Tela estática:
@@ -120,21 +96,44 @@ Fontes utilizadas:
 Foi adiciona uma distância diária percorrida pelo ciclista. Ademais, aumentou-se a fonte dos números de velocidade, distância e cronômetro em relação a unidades para facilitar a visualização. Trocou-se também a maneira de troca do aro para um roller para usar-se medidas mais comuns no mercado.
 
 
+
 ### Proposta UX 3 - A
+## [Entrevista Externa com Rodrigo - Feedback](https://youtu.be/pP0UuXKGiH0)
 
-> - Especifica e justifica as cores a serem usadas na interface
-> - Pega feedback com mais uma pessoa externa e incorpora na interface
->     - Grava em vídeo a entrevista
-> - Grava um vídeo atualizado explicando o que foi sugerido e o que fizeram para melhorar a interface
-> - Apresentar uma foto da interface sendo executada no LCD (imagem estática)
+## [Vídeo apresentando display aprimorado para A](https://youtu.be/eCICbtYZ3Xc)
 
-Detalhes da terceira interação da proposta de interface:
+* Cores utilizadas:
 
-<!-- 
- Adicionar texto descrevendo a evolução 
- da interface
--->
+ O display tem cores preto e branco padrões utilizadas. Todavia, para a paleta do Roller será utilizada a cor azul cadete (#5f9ea0),
+ mantendo a aparência com a logo escolhida.
 
-- Imagem da proposta
-- Imagem da proposta no LCD
-- Vídeo 
+ * Telas disponíveis:
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/imgf1.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/imgf2.png" style="width:48rem"></td>
+    <td align="center"> <img src="assets/imgf3.png" style="width:48rem"></td>
+  </tr>
+</table>
+</div>
+
+* Tela estática:
+<div align="center" style="max-width:68rem;">
+<table>
+  <tr>
+    <td align="center"> <img src="assets/final1.jpeg" style="size:48rem"></td>
+    <td align="center"> <img src="assets/final2.jpeg" style="size:48px"></td>
+    <td align="center"> <img src="assets/final3.jpeg" style="size:48px"></td>
+  </tr>
+</table>
+</div>
+
+
+**Detalhes da terceira interação da proposta de interface:**
+
+Foi utilizado um ícone mais intuitivo e adaptativo para a função Route do display, melhorando a usabilidade do display.
+
+
+
+@Insper, Computação Embarcada, Quinto Semestre
