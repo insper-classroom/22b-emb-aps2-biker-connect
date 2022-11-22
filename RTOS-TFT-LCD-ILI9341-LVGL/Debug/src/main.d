@@ -414,8 +414,7 @@ src/main.d src/main.o: ../src/main.c ../src/asf.h \
  ../src/ASF/thirdparty/lvgl8/src/extra/libs/freetype/../../../lvgl.h \
  ../src/ASF/thirdparty/lvgl8/src/extra/libs/rlottie/lv_rlottie.h \
  ../src/ASF/thirdparty/lvgl8/src/extra/libs/rlottie/../../../lvgl.h \
- ../src/touch/touch.h ../src/telafinal1.h ../src/telafinal2.h \
- ../src/telafinal3.h
+ ../src/touch/touch.h ../src/background.h ../src/wheel.h
 
 ../src/asf.h:
 
@@ -1267,8 +1266,6 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 
 ../src/touch/touch.h:
 
-../src/telafinal1.h:
+../src/background.h:
 
-../src/telafinal2.h:
-
-../src/telafinal3.h:
+../src/wheel.h:
