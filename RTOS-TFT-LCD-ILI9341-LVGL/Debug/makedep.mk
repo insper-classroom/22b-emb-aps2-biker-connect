@@ -620,6 +620,16 @@ src\ASF\thirdparty\lvgl8\tests\unity\unity.c
 
 src\ASF\thirdparty\lvgl8\tests\unity\unity_support.c
 
+src\icons\acce.c
+
+src\icons\button2.c
+
+src\icons\logo.c
+
+src\icons\today.c
+
+src\icons\vmedia.c
+
 src\touch\touch.c
 
 src\wheel\t_1.c

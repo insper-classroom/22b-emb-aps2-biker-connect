@@ -854,6 +854,7 @@
     <Folder Include="src\ASF\thirdparty\lvgl8\tests\unity\" />
     <Folder Include="src\ASF\thirdparty\lvgl8\zephyr\" />
     <Folder Include="src\config\" />
+    <Folder Include="src\icons" />
     <Folder Include="src\wheel" />
     <Folder Include="src\touch\" />
   </ItemGroup>
@@ -2269,6 +2270,21 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\config\conf_touch.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\acce.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\button2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\logo.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\today.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\vmedia.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\touch\touch.c">
