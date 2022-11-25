@@ -12,9 +12,21 @@
 #include "wheel.h"
 
 
-xSemaphoreHandle xSemaphoreScreen1;
-xSemaphoreHandle xSemaphoreScreen2;
-xSemaphoreHandle xSemaphoreScreen3;
+SemaphoreHandle_t xSemaphoreScreen1;
+SemaphoreHandle_t xSemaphoreScreen2;
+SemaphoreHandle_t xSemaphoreScreen3;
+SemaphoreHandle_t xSemaphoreRTC;
+
+
+typedef struct  {
+	uint32_t year;
+	uint32_t month;
+	uint32_t day;
+	uint32_t week;
+	uint32_t hour;
+	uint32_t minute;
+	uint32_t seccond;
+} calendar;
 
 /************************************************************************/
 /* LCD / LVGL                                                           */
@@ -42,6 +54,9 @@ static lv_indev_drv_t indev_drv;
 #define TASK_CHANGE_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
 #define TASK_CHANGE_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
+#define TASK_RTC_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_RTC_STACK_PRIORITY            (tskIDLE_PRIORITY)
+
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,  signed char *pcTaskName);
 extern void vApplicationIdleHook(void);
 extern void vApplicationTickHook(void);
@@ -60,6 +75,32 @@ extern void vApplicationTickHook(void) { }
 extern void vApplicationMallocFailedHook(void) {
 	configASSERT( ( volatile void * ) NULL );
 }
+
+/************************************************************************/
+/* Handlers and callbacks                                               */
+/************************************************************************/
+void RTC_Handler(void) {
+	uint32_t ul_status = rtc_get_status(RTC);
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	
+	/* Time or date alarm */
+	if ((ul_status & RTC_SR_ALARM) == RTC_SR_ALARM) {
+		// o código para irq de alame vem aqui
+	}
+	
+	/* seccond tick */
+	if ((ul_status & RTC_SR_SEC) == RTC_SR_SEC) {
+		xSemaphoreGiveFromISR(xSemaphoreRTC, &xHigherPriorityTaskWoken);
+	}
+
+	rtc_clear_status(RTC, RTC_SCCR_SECCLR);
+	rtc_clear_status(RTC, RTC_SCCR_ALRCLR);
+	rtc_clear_status(RTC, RTC_SCCR_ACKCLR);
+	rtc_clear_status(RTC, RTC_SCCR_TIMCLR);
+	rtc_clear_status(RTC, RTC_SCCR_CALCLR);
+	rtc_clear_status(RTC, RTC_SCCR_TDERRCLR);
+}
+
 
 /************************************************************************/
 /* lvgl                                                                 */
@@ -82,6 +123,9 @@ static lv_obj_t * labelBtn3;
 
 lv_obj_t * inst_speed;
 lv_obj_t * actual_distance;
+lv_obj_t * clock_screen1;
+lv_obj_t * clock_screen2;
+lv_obj_t * clock_screen3;
 
 static void event_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
@@ -150,12 +194,11 @@ void lv_screen_1(lv_obj_t * screen) {
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(label_screen,"Instantaneous");
 	
-	lv_obj_t * clock;
-	clock = lv_label_create(screen);
-	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
-	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
-	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(clock,"12:05:34");
+	clock_screen1 = lv_label_create(screen);
+	lv_obj_align(clock_screen1, LV_ALIGN_TOP_RIGHT, -5 , 12);
+	lv_obj_set_style_text_font(clock_screen1, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(clock_screen1, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(clock_screen1,"12:05:34");
 	
 	//Main topics of screen
 	lv_obj_t * animimg0 = lv_animimg_create(screen);
@@ -287,12 +330,12 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(label_screen,"Route");
 	
-	lv_obj_t * clock;
-	clock = lv_label_create(screen);
-	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
-	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
-	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(clock,"12:05:34");
+	
+	clock_screen2 = lv_label_create(screen);
+	lv_obj_align(clock_screen2, LV_ALIGN_TOP_RIGHT, -5 , 12);
+	lv_obj_set_style_text_font(clock_screen2, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(clock_screen2, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(clock_screen2,"12:05:34");
 	
 	//Line points
 	static lv_point_t line_points[] = { {5, 0}, {315, 0} };
@@ -383,12 +426,11 @@ void lv_screen_3(lv_obj_t * screen) {
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(label_screen,"Settings");
 	
-	lv_obj_t * clock;
-	clock = lv_label_create(screen);
-	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
-	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
-	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(clock,"12:05:34");
+	clock_screen3 = lv_label_create(screen);
+	lv_obj_align(clock_screen3, LV_ALIGN_TOP_RIGHT, -5 , 12);
+	lv_obj_set_style_text_font(clock_screen3, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(clock_screen3, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(clock_screen3,"12:05:34");
 	
 	//Line points
 	static lv_point_t line_points[] = { {5, 0}, {315, 0} };
@@ -461,6 +503,31 @@ void lv_screen_3(lv_obj_t * screen) {
 	lv_obj_center(labelBtn3);
 }
 
+
+/************************************************************************/
+/* Init Functions                                                       */
+/************************************************************************/
+void RTC_init(Rtc *rtc, uint32_t id_rtc, calendar t, uint32_t irq_type) {
+	/* Configura o PMC */
+	pmc_enable_periph_clk(ID_RTC);
+
+	/* Default RTC configuration, 24-hour mode */
+	rtc_set_hour_mode(rtc, 0);
+
+	/* Configura data e hora manualmente */
+	rtc_set_date(rtc, t.year, t.month, t.day, t.week);
+	rtc_set_time(rtc, t.hour, t.minute, t.seccond);
+
+	/* Configure RTC interrupts */
+	NVIC_DisableIRQ(id_rtc);
+	NVIC_ClearPendingIRQ(id_rtc);
+	NVIC_SetPriority(id_rtc, 4);
+	NVIC_EnableIRQ(id_rtc);
+
+	/* Ativa interrupcao via alarme */
+	rtc_enable_interrupt(rtc,  irq_type);
+}
+
 /************************************************************************/
 /* TASKS                                                                */
 /************************************************************************/
@@ -492,6 +559,20 @@ static void task_change_screen(void *pvParameters) {
 		}
 		if (xSemaphoreTake(xSemaphoreScreen3,1000)){
 			lv_scr_load(scr3);
+		}
+	}
+}
+
+static void task_rtc(void *pvParameters) {
+	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
+	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
+	for(;;) {
+		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
+			uint32_t current_hour, current_min, current_sec;
+			rtc_get_time(RTC, &current_hour, &current_min, &current_sec);
+			lv_label_set_text_fmt(clock_screen1, "%02d:%02d:%02d", current_hour, current_min, current_sec);
+			lv_label_set_text_fmt(clock_screen2, "%02d:%02d:%02d", current_hour, current_min, current_sec);
+			lv_label_set_text_fmt(clock_screen3, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 		}
 	}
 }
@@ -590,6 +671,7 @@ int main(void) {
 	xSemaphoreScreen1 = xSemaphoreCreateBinary();
 	xSemaphoreScreen2 = xSemaphoreCreateBinary();
 	xSemaphoreScreen3 = xSemaphoreCreateBinary();
+	xSemaphoreRTC = xSemaphoreCreateBinary();
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
@@ -597,6 +679,10 @@ int main(void) {
 	}
 	if (xTaskCreate(task_change_screen, "CHANGE", TASK_CHANGE_STACK_SIZE, NULL, TASK_CHANGE_STACK_PRIORITY, NULL) != pdPASS) {
 		printf("Failed to create Change Lcd task\r\n");
+	}
+	
+	if (xTaskCreate(task_rtc, "rtc", TASK_RTC_STACK_SIZE, NULL, TASK_RTC_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create rtc task\r\n");
 	}
 	
 	/* Start the scheduler. */
