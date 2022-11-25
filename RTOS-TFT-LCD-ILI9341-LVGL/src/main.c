@@ -11,6 +11,11 @@
 #include "background.h"
 #include "wheel.h"
 
+
+xSemaphoreHandle xSemaphoreScreen1;
+xSemaphoreHandle xSemaphoreScreen2;
+xSemaphoreHandle xSemaphoreScreen3;
+
 /************************************************************************/
 /* LCD / LVGL                                                           */
 /************************************************************************/
@@ -33,6 +38,9 @@ static lv_indev_drv_t indev_drv;
 
 #define TASK_LCD_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
 #define TASK_LCD_STACK_PRIORITY            (tskIDLE_PRIORITY)
+
+#define TASK_CHANGE_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_CHANGE_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,  signed char *pcTaskName);
 extern void vApplicationIdleHook(void);
@@ -64,6 +72,10 @@ LV_IMG_DECLARE(acce);
 LV_IMG_DECLARE(vmedia);
 LV_IMG_DECLARE(button2);
 
+static lv_obj_t * scr1;  // screen 1
+static lv_obj_t * scr2;  // screen 2
+static lv_obj_t * scr3;  // screen 2
+
 static lv_obj_t * labelBtn1;
 static lv_obj_t * labelBtn2;
 static lv_obj_t * labelBtn3;
@@ -82,67 +94,71 @@ static void event_handler(lv_event_t * e) {
 	}
 }
 
-static void event_handler4(lv_event_t * e) {
+
+static void homescreen_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
 	char *c;
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
-		c = lv_label_get_text(inst_speed);
-		temp = atoi(c);
-		lv_label_set_text_fmt(inst_speed, "%02d", temp +1);
+		xSemaphoreGive(xSemaphoreScreen1);
+// 		c = lv_label_get_text(inst_speed);
+// 		temp = atoi(c);
+// 		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
 	}
 }
 
-static void event_handler5(lv_event_t * e) {
+static void routescreen_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
 	char *c;
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
-		c = lv_label_get_text(inst_speed);
-		temp = atoi(c);
-		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
+		xSemaphoreGive(xSemaphoreScreen2);
+// 		c = lv_label_get_text(inst_speed);
+// 		temp = atoi(c);
+// 		lv_label_set_text_fmt(inst_speed, "%02d", temp +2);
 	}
 }
 
-static void event_handler6(lv_event_t * e) {
+static void configscreen_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
 	char *c;
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
-		c = lv_label_get_text(inst_speed);
-		temp = atoi(c);
-		lv_label_set_text_fmt(inst_speed, "%02d", temp +2);
+		xSemaphoreGive(xSemaphoreScreen3);
+// 		c = lv_label_get_text(inst_speed);
+// 		temp = atoi(c);
+// 		lv_label_set_text_fmt(inst_speed, "%02d", temp +1);
 	}
 }
 
 
-void lv_screen_1(void) {
+void lv_screen_1(lv_obj_t * screen) {
 	// background
-	lv_obj_t * background = lv_img_create(lv_scr_act());
+	lv_obj_t * background = lv_img_create(screen);
 	lv_img_set_src(background, &white);
 	lv_obj_align(background, LV_ALIGN_CENTER, 0, 0);
 	
 	// Top objects
-	lv_obj_t * logo_img = lv_img_create(lv_scr_act());
+	lv_obj_t * logo_img = lv_img_create(screen);
 	lv_img_set_src(logo_img, &logo);
 	lv_obj_align(logo_img, LV_ALIGN_TOP_LEFT, 0, 0);
 	
 	lv_obj_t * label_screen;
-	label_screen = lv_label_create(lv_scr_act());
+	label_screen = lv_label_create(screen);
 	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
 	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(label_screen,"Instantaneous");
 	
 	lv_obj_t * clock;
-	clock = lv_label_create(lv_scr_act());
+	clock = lv_label_create(screen);
 	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
 	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(clock,"12:05:34");
 	
 	//Main topics of screen
-	lv_obj_t * animimg0 = lv_animimg_create(lv_scr_act());
+	lv_obj_t * animimg0 = lv_animimg_create(screen);
 	lv_obj_align(animimg0, LV_ALIGN_LEFT_MID, 30, -16);
 	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 120);
 	lv_animimg_set_duration(animimg0, 1000);
@@ -161,50 +177,49 @@ void lv_screen_1(void) {
 
 	// Bottom Line
 	lv_obj_t * bottom_line;
-	bottom_line = lv_line_create(lv_scr_act());
+	bottom_line = lv_line_create(screen);
 	lv_line_set_points(bottom_line, line_points, 2);     /*Set the points*/
 	lv_obj_add_style(bottom_line, &style_line, 0);
 	lv_obj_align(bottom_line, LV_ALIGN_BOTTOM_MID, 0, -60);
 	
 	// Top Line
 	lv_obj_t * top_line;
-	top_line = lv_line_create(lv_scr_act());
+	top_line = lv_line_create(screen);
 	lv_line_set_points(top_line, line_points, 2);     /*Set the points*/
 	lv_obj_add_style(top_line, &style_line, 0);
 	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
 	
 	// Acceleration indication
-	lv_obj_t * acceleration = lv_img_create(lv_scr_act());
+	lv_obj_t * acceleration = lv_img_create(screen);
 	lv_img_set_src(acceleration, &acce);
 	lv_obj_align(acceleration, LV_ALIGN_RIGHT_MID, -120, -50);
 	
 	// Diary distance
-	lv_obj_t * diary_distance = lv_img_create(lv_scr_act());
+	lv_obj_t * diary_distance = lv_img_create(screen);
 	lv_img_set_src(diary_distance, &today);
 	lv_obj_align(diary_distance, LV_ALIGN_RIGHT_MID, -110, 20);
 	
 	
-	inst_speed = lv_label_create(lv_scr_act());
+	inst_speed = lv_label_create(screen);
 	lv_obj_align(inst_speed, LV_ALIGN_RIGHT_MID, -55 , -50);
 	lv_obj_set_style_text_font(inst_speed, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(inst_speed, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(inst_speed," %02d" , 23);
 	
-	actual_distance = lv_label_create(lv_scr_act());
+	actual_distance = lv_label_create(screen);
 	lv_obj_align(actual_distance, LV_ALIGN_RIGHT_MID, -55 , 20);
 	lv_obj_set_style_text_font(actual_distance, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(actual_distance, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(actual_distance," %02d" , 35);
 	
-	
-	lv_obj_t * km_h_unity = lv_label_create(lv_scr_act());
+	lv_obj_t * km_h_unity = lv_label_create(screen);
 	lv_obj_align(km_h_unity, LV_ALIGN_RIGHT_MID, -15 , -50);
 	lv_obj_set_style_text_font(km_h_unity, &lv_font_montserrat_20, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(km_h_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(km_h_unity,"KM/\n  h" );
 	
 	lv_obj_t * km_unity;
-	km_unity = lv_label_create(lv_scr_act());
+	km_unity = lv_label_create(screen);
 	lv_obj_align(km_unity, LV_ALIGN_RIGHT_MID, -15 , 20);
 	lv_obj_set_style_text_font(km_unity, &lv_font_montserrat_20, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(km_unity, lv_color_black(), LV_STATE_DEFAULT);
@@ -217,8 +232,8 @@ void lv_screen_1(void) {
 	lv_style_set_border_width(&style, 0);
 	lv_style_set_border_color(&style, lv_color_white());
 	
-	lv_obj_t * btn1 = lv_btn_create(lv_scr_act());
-	lv_obj_add_event_cb(btn1, event_handler4, LV_EVENT_ALL, NULL);
+	lv_obj_t * btn1 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn1, configscreen_handler, LV_EVENT_ALL, NULL);
 	lv_obj_set_size(btn1,55,55);
 	lv_obj_align(btn1, LV_ALIGN_BOTTOM_MID, 110 , -5);
 	lv_obj_add_style(btn1, &style, 0);
@@ -229,8 +244,8 @@ void lv_screen_1(void) {
 	lv_label_set_text_fmt(labelBtn1,LV_SYMBOL_SETTINGS);
 	lv_obj_center(labelBtn1);
 	
-	lv_obj_t * btn2 = lv_btn_create(lv_scr_act());
-	lv_obj_add_event_cb(btn2, event_handler5, LV_EVENT_ALL, NULL);
+	lv_obj_t * btn2 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn2, homescreen_handler, LV_EVENT_ALL, NULL);
 	lv_obj_set_size(btn2,55,55);
 	lv_obj_align(btn2,LV_ALIGN_BOTTOM_LEFT, 15 , -5);
 	lv_obj_add_style(btn2, &style, 0);
@@ -241,8 +256,200 @@ void lv_screen_1(void) {
 	lv_label_set_text_fmt(labelBtn2,LV_SYMBOL_HOME);
 	lv_obj_center(labelBtn2);
 	
-	lv_obj_t * btn3 = lv_btn_create(lv_scr_act());
-	lv_obj_add_event_cb(btn3, event_handler6, LV_EVENT_ALL, NULL);
+	lv_obj_t * btn3 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn3, routescreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn3,55,55);
+	lv_obj_align(btn3,LV_ALIGN_BOTTOM_MID, 0 , -5);
+	lv_obj_add_style(btn3, &style, 0);
+
+	labelBtn3 = lv_label_create(btn3);
+	lv_obj_set_style_text_font(labelBtn3, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn3, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_PLAY);
+	lv_obj_center(labelBtn3);
+}
+
+void lv_screen_2(lv_obj_t * screen) {
+	// background
+	lv_obj_t * background = lv_img_create(screen);
+	lv_img_set_src(background, &white);
+	lv_obj_align(background, LV_ALIGN_CENTER, 0, 0);
+	
+	// Top objects
+	lv_obj_t * logo_img = lv_img_create(screen);
+	lv_img_set_src(logo_img, &logo);
+	lv_obj_align(logo_img, LV_ALIGN_TOP_LEFT, 0, 0);
+	
+	lv_obj_t * label_screen;
+	label_screen = lv_label_create(screen);
+	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
+	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(label_screen,"Route");
+	
+	lv_obj_t * clock;
+	clock = lv_label_create(screen);
+	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
+	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(clock,"12:05:34");
+	
+	//Line points
+	static lv_point_t line_points[] = { {5, 0}, {315, 0} };
+
+	/*Create style of lines*/
+	static lv_style_t style_line;
+	lv_style_init(&style_line);
+	lv_style_set_line_width(&style_line, 3);
+	lv_style_set_line_color(&style_line, lv_palette_main(LV_PALETTE_CYAN));
+	lv_style_set_line_rounded(&style_line, true);
+
+	// Bottom Line
+	lv_obj_t * bottom_line;
+	bottom_line = lv_line_create(screen);
+	lv_line_set_points(bottom_line, line_points, 2);     /*Set the points*/
+	lv_obj_add_style(bottom_line, &style_line, 0);
+	lv_obj_align(bottom_line, LV_ALIGN_BOTTOM_MID, 0, -60);
+	
+	// Top Line
+	lv_obj_t * top_line;
+	top_line = lv_line_create(screen);
+	lv_line_set_points(top_line, line_points, 2);     /*Set the points*/
+	lv_obj_add_style(top_line, &style_line, 0);
+	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
+	
+	
+	
+	
+	// Buttons of bottom
+	static lv_style_t style;
+	lv_style_init(&style);
+	lv_style_set_bg_color(&style, lv_color_white());
+	lv_style_set_border_width(&style, 0);
+	lv_style_set_border_color(&style, lv_color_white());
+	
+	lv_obj_t * btn1 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn1, configscreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn1,55,55);
+	lv_obj_align(btn1, LV_ALIGN_BOTTOM_MID, 110 , -5);
+	lv_obj_add_style(btn1, &style, 0);
+
+	labelBtn1 = lv_label_create(btn1);
+	lv_obj_set_style_text_font(labelBtn1, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn1, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn1,LV_SYMBOL_SETTINGS);
+	lv_obj_center(labelBtn1);
+	
+	lv_obj_t * btn2 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn2, homescreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn2,55,55);
+	lv_obj_align(btn2,LV_ALIGN_BOTTOM_LEFT, 15 , -5);
+	lv_obj_add_style(btn2, &style, 0);
+
+	labelBtn2 = lv_label_create(btn2);
+	lv_obj_set_style_text_font(labelBtn2, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn2, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn2,LV_SYMBOL_HOME);
+	lv_obj_center(labelBtn2);
+	
+	lv_obj_t * btn3 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn3, routescreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn3,55,55);
+	lv_obj_align(btn3,LV_ALIGN_BOTTOM_MID, 0 , -5);
+	lv_obj_add_style(btn3, &style, 0);
+
+	labelBtn3 = lv_label_create(btn3);
+	lv_obj_set_style_text_font(labelBtn3, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn3, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_PLAY);
+	lv_obj_center(labelBtn3);
+}
+
+void lv_screen_3(lv_obj_t * screen) {
+	// background
+	lv_obj_t * background = lv_img_create(screen);
+	lv_img_set_src(background, &white);
+	lv_obj_align(background, LV_ALIGN_CENTER, 0, 0);
+	
+	// Top objects
+	lv_obj_t * logo_img = lv_img_create(screen);
+	lv_img_set_src(logo_img, &logo);
+	lv_obj_align(logo_img, LV_ALIGN_TOP_LEFT, 0, 0);
+	
+	lv_obj_t * label_screen;
+	label_screen = lv_label_create(screen);
+	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
+	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(label_screen,"Settings");
+	
+	lv_obj_t * clock;
+	clock = lv_label_create(screen);
+	lv_obj_align(clock, LV_ALIGN_TOP_RIGHT, -5 , 12);
+	lv_obj_set_style_text_font(clock, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(clock, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(clock,"12:05:34");
+	
+	//Line points
+	static lv_point_t line_points[] = { {5, 0}, {315, 0} };
+
+	/*Create style of lines*/
+	static lv_style_t style_line;
+	lv_style_init(&style_line);
+	lv_style_set_line_width(&style_line, 3);
+	lv_style_set_line_color(&style_line, lv_palette_main(LV_PALETTE_CYAN));
+	lv_style_set_line_rounded(&style_line, true);
+
+	// Bottom Line
+	lv_obj_t * bottom_line;
+	bottom_line = lv_line_create(screen);
+	lv_line_set_points(bottom_line, line_points, 2);     /*Set the points*/
+	lv_obj_add_style(bottom_line, &style_line, 0);
+	lv_obj_align(bottom_line, LV_ALIGN_BOTTOM_MID, 0, -60);
+	
+	// Top Line
+	lv_obj_t * top_line;
+	top_line = lv_line_create(screen);
+	lv_line_set_points(top_line, line_points, 2);     /*Set the points*/
+	lv_obj_add_style(top_line, &style_line, 0);
+	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
+	
+	
+	
+	
+	// Buttons of bottom
+	static lv_style_t style;
+	lv_style_init(&style);
+	lv_style_set_bg_color(&style, lv_color_white());
+	lv_style_set_border_width(&style, 0);
+	lv_style_set_border_color(&style, lv_color_white());
+	
+	lv_obj_t * btn1 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn1, configscreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn1,55,55);
+	lv_obj_align(btn1, LV_ALIGN_BOTTOM_MID, 110 , -5);
+	lv_obj_add_style(btn1, &style, 0);
+
+	labelBtn1 = lv_label_create(btn1);
+	lv_obj_set_style_text_font(labelBtn1, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn1, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn1,LV_SYMBOL_SETTINGS);
+	lv_obj_center(labelBtn1);
+	
+	lv_obj_t * btn2 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn2, homescreen_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn2,55,55);
+	lv_obj_align(btn2,LV_ALIGN_BOTTOM_LEFT, 15 , -5);
+	lv_obj_add_style(btn2, &style, 0);
+
+	labelBtn2 = lv_label_create(btn2);
+	lv_obj_set_style_text_font(labelBtn2, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn2, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn2,LV_SYMBOL_HOME);
+	lv_obj_center(labelBtn2);
+	
+	lv_obj_t * btn3 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn3, routescreen_handler, LV_EVENT_ALL, NULL);
 	lv_obj_set_size(btn3,55,55);
 	lv_obj_align(btn3,LV_ALIGN_BOTTOM_MID, 0 , -5);
 	lv_obj_add_style(btn3, &style, 0);
@@ -260,13 +467,32 @@ void lv_screen_1(void) {
 
 static void task_lcd(void *pvParameters) {
 	int px, py;
-
-	lv_screen_1();
+	scr1  = lv_obj_create(NULL);
+	scr2  = lv_obj_create(NULL);
+	scr3  = lv_obj_create(NULL);
+	lv_screen_1(scr1);
+	lv_screen_2(scr2);
+	lv_screen_3(scr3);
+	lv_scr_load(scr1);
 
 	for (;;)  {
 		lv_tick_inc(50);
 		lv_task_handler();
 		vTaskDelay(50);
+	}
+}
+
+static void task_change_screen(void *pvParameters) {
+	for (;;)  {
+		if (xSemaphoreTake(xSemaphoreScreen1,1000)){
+			lv_scr_load(scr1);
+		}
+		if (xSemaphoreTake(xSemaphoreScreen2,1000)){
+			lv_scr_load(scr2);
+		}
+		if (xSemaphoreTake(xSemaphoreScreen3,1000)){
+			lv_scr_load(scr3);
+		}
 	}
 }
 
@@ -360,10 +586,17 @@ int main(void) {
 	configure_lcd();
 	configure_touch();
 	configure_lvgl();
+	
+	xSemaphoreScreen1 = xSemaphoreCreateBinary();
+	xSemaphoreScreen2 = xSemaphoreCreateBinary();
+	xSemaphoreScreen3 = xSemaphoreCreateBinary();
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
 		printf("Failed to create lcd task\r\n");
+	}
+	if (xTaskCreate(task_change_screen, "CHANGE", TASK_CHANGE_STACK_SIZE, NULL, TASK_CHANGE_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create Change Lcd task\r\n");
 	}
 	
 	/* Start the scheduler. */
