@@ -120,6 +120,8 @@ static lv_obj_t * scr3;  // screen 2
 static lv_obj_t * labelBtn1;
 static lv_obj_t * labelBtn2;
 static lv_obj_t * labelBtn3;
+static lv_obj_t * labelBtn4;
+static lv_obj_t * labelBtn5;
 
 lv_obj_t * inst_speed;
 lv_obj_t * actual_distance;
@@ -172,6 +174,33 @@ static void configscreen_handler(lv_event_t * e) {
 // 		c = lv_label_get_text(inst_speed);
 // 		temp = atoi(c);
 // 		lv_label_set_text_fmt(inst_speed, "%02d", temp +1);
+	}
+}
+
+static void playpause_handler(lv_event_t * e) {
+	lv_event_code_t code = lv_event_get_code(e);
+	char *c;
+	int temp;
+	static state = 0;
+	if(code == LV_EVENT_CLICKED) {
+		if (state){
+			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
+		}
+		else{
+			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PAUSE);
+		}
+		 state = !state;
+	}
+}
+
+static void stop_handler(lv_event_t * e) {
+	lv_event_code_t code = lv_event_get_code(e);
+	char *c;
+	int temp;
+	if(code == LV_EVENT_CLICKED) {
+		c = lv_label_get_text(inst_speed);
+		temp = atoi(c);
+		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
 	}
 }
 
@@ -308,7 +337,7 @@ void lv_screen_1(lv_obj_t * screen) {
 	labelBtn3 = lv_label_create(btn3);
 	lv_obj_set_style_text_font(labelBtn3, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(labelBtn3, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_PLAY);
+	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_CHARGE);
 	lv_obj_center(labelBtn3);
 }
 
@@ -339,6 +368,7 @@ void lv_screen_2(lv_obj_t * screen) {
 	
 	//Line points
 	static lv_point_t line_points[] = { {5, 0}, {315, 0} };
+	static lv_point_t vertical_points[] = { {0, 23}, {0, 158} };
 
 	/*Create style of lines*/
 	static lv_style_t style_line;
@@ -361,15 +391,45 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_obj_add_style(top_line, &style_line, 0);
 	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
 	
-	
-	
-	
-	// Buttons of bottom
 	static lv_style_t style;
 	lv_style_init(&style);
 	lv_style_set_bg_color(&style, lv_color_white());
 	lv_style_set_border_width(&style, 0);
 	lv_style_set_border_color(&style, lv_color_white());
+	
+	lv_obj_t * vertical_line;
+	vertical_line = lv_line_create(screen);
+	lv_line_set_points(vertical_line, vertical_points, 2);     /*Set the points*/
+	lv_obj_add_style(vertical_line, &style_line, 0);
+	lv_obj_align(vertical_line, LV_ALIGN_LEFT_MID, 80, -20);
+	
+	lv_obj_t * btn4 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn4, playpause_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn4,55,55);
+	lv_obj_align(btn4,LV_ALIGN_LEFT_MID, 15 , -45);
+	lv_obj_add_style(btn4, &style, 0);
+	
+
+	labelBtn4 = lv_label_create(btn4);
+	lv_obj_set_style_text_font(labelBtn4, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn4, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn4,LV_SYMBOL_PLAY);
+	lv_obj_center(labelBtn4);
+	
+	lv_obj_t * btn5 = lv_btn_create(screen);
+	lv_obj_add_event_cb(btn5, stop_handler, LV_EVENT_ALL, NULL);
+	lv_obj_set_size(btn5,55,55);
+	lv_obj_align(btn5,LV_ALIGN_LEFT_MID, 15 , 20);
+	lv_obj_add_style(btn5, &style, 0);
+
+	labelBtn5 = lv_label_create(btn5);
+	lv_obj_set_style_text_font(labelBtn5, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(labelBtn5, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(labelBtn5,LV_SYMBOL_STOP);
+	lv_obj_center(labelBtn5);
+	
+	
+	// Buttons of bottom
 	
 	lv_obj_t * btn1 = lv_btn_create(screen);
 	lv_obj_add_event_cb(btn1, configscreen_handler, LV_EVENT_ALL, NULL);
@@ -404,7 +464,7 @@ void lv_screen_2(lv_obj_t * screen) {
 	labelBtn3 = lv_label_create(btn3);
 	lv_obj_set_style_text_font(labelBtn3, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(labelBtn3, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_PLAY);
+	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_CHARGE);
 	lv_obj_center(labelBtn3);
 }
 
@@ -458,7 +518,6 @@ void lv_screen_3(lv_obj_t * screen) {
 	
 	
 	
-	
 	// Buttons of bottom
 	static lv_style_t style;
 	lv_style_init(&style);
@@ -499,7 +558,7 @@ void lv_screen_3(lv_obj_t * screen) {
 	labelBtn3 = lv_label_create(btn3);
 	lv_obj_set_style_text_font(labelBtn3, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(labelBtn3, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_PLAY);
+	lv_label_set_text_fmt(labelBtn3,LV_SYMBOL_CHARGE);
 	lv_obj_center(labelBtn3);
 }
 
