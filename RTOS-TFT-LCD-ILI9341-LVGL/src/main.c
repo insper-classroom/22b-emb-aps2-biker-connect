@@ -208,6 +208,17 @@ static void stop_handler(lv_event_t * e) {
 	}
 }
 
+static void roller_handler(lv_event_t * e)
+{
+	lv_event_code_t code = lv_event_get_code(e);
+	lv_obj_t * obj = lv_event_get_target(e);
+	if(code == LV_EVENT_VALUE_CHANGED) {
+		char buf[32];
+		lv_roller_get_selected_str(obj, buf, sizeof(buf));
+		LV_LOG_USER("Selected month: %s\n", buf);
+	}
+}
+
 
 void lv_screen_1(lv_obj_t * screen) {
 	// background
@@ -569,6 +580,30 @@ void lv_screen_3(lv_obj_t * screen) {
 	lv_obj_add_style(top_line, &style_line, 0);
 	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
 	
+	lv_obj_t * roller1 = lv_roller_create(screen);
+	lv_roller_set_options(roller1,
+	"21''\n"
+	"22''\n"
+	"23''\n"
+	"24''\n"
+	"25''\n"
+	"26''",
+	LV_ROLLER_MODE_INFINITE);
+
+	lv_roller_set_visible_row_count(roller1, 4);
+	lv_obj_set_size(roller1,120,120);
+	lv_obj_align(roller1, LV_ALIGN_RIGHT_MID, -55, -13);
+	lv_obj_add_event_cb(roller1, roller_handler, LV_EVENT_ALL, NULL);
+	
+	lv_obj_t * radius = lv_label_create(screen);
+	lv_obj_align(radius, LV_ALIGN_LEFT_MID, 35 , -65);
+	lv_obj_set_style_text_font(radius, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(radius, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(radius,"Diameter");
+	
+	lv_obj_t * bike_wheel = lv_img_create(screen);
+	lv_img_set_src(bike_wheel, &t_1);
+	lv_obj_align(bike_wheel,  LV_ALIGN_LEFT_MID, 30, -16);
 	
 	
 	// Buttons of bottom
