@@ -106,6 +106,7 @@ void RTC_Handler(void) {
 /* lvgl                                                                 */
 /************************************************************************/
 LV_FONT_DECLARE(lv_font_montserrat_48);
+LV_FONT_DECLARE(lv_font_montserrat_24);
 LV_FONT_DECLARE(lv_font_montserrat_20);
 LV_IMG_DECLARE(logo);
 LV_IMG_DECLARE(today);
@@ -114,7 +115,7 @@ LV_IMG_DECLARE(vmedia);
 LV_IMG_DECLARE(button2);
 LV_IMG_DECLARE(average);
 LV_IMG_DECLARE(distance);
-LV_IMG_DECLARE(clock);
+LV_IMG_DECLARE(clock_sig);
 
 static lv_obj_t * scr1;  // screen 1
 static lv_obj_t * scr2;  // screen 2
@@ -224,7 +225,7 @@ void lv_screen_1(lv_obj_t * screen) {
 	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
 	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(label_screen,"Instantaneous");
+	lv_label_set_text_fmt(label_screen,LV_SYMBOL_HOME " Home");
 	
 	clock_screen1 = lv_label_create(screen);
 	lv_obj_align(clock_screen1, LV_ALIGN_TOP_RIGHT, -5 , 12);
@@ -235,7 +236,7 @@ void lv_screen_1(lv_obj_t * screen) {
 	//Main topics of screen
 	lv_obj_t * animimg0 = lv_animimg_create(screen);
 	lv_obj_align(animimg0, LV_ALIGN_LEFT_MID, 30, -16);
-	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 120);
+	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 117);
 	lv_animimg_set_duration(animimg0, 1000);
 	lv_animimg_set_repeat_count(animimg0, LV_ANIM_REPEAT_INFINITE);
 	lv_animimg_start(animimg0);
@@ -360,7 +361,7 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
 	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(label_screen,"Route");
+	lv_label_set_text_fmt(label_screen,LV_SYMBOL_CHARGE " Route");
 	
 	
 	clock_screen2 = lv_label_create(screen);
@@ -431,18 +432,55 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_label_set_text_fmt(labelBtn5,LV_SYMBOL_STOP);
 	lv_obj_center(labelBtn5);
 	
-// 	lv_obj_t * dist_img = lv_img_create(screen);
-// 	lv_img_set_src(dist_img, &distance);
-// 	lv_obj_align(dist_img, LV_ALIGN_LEFT_MID, 45 , 20);
-// 	
-// 	lv_obj_t * avg_img = lv_img_create(screen);
-// 	lv_img_set_src(avg_img, &average);
-// 	lv_obj_align(avg_img, LV_ALIGN_LEFT_MID, 95 , 20);
-// 	
-// 	
-// 	lv_obj_t * clock_img = lv_img_create(screen);
-// 	lv_img_set_src(clock_img, &clock);
-// 	lv_obj_align(clock_img, LV_ALIGN_LEFT_MID, 155 , 20);
+	lv_obj_t * dist_img = lv_img_create(screen);
+	lv_img_set_src(dist_img, &distance);
+	lv_obj_align(dist_img, LV_ALIGN_LEFT_MID, 85 , -38);
+	
+	lv_obj_t * avg_img = lv_img_create(screen);
+	lv_img_set_src(avg_img, &average);
+	lv_obj_align(avg_img, LV_ALIGN_LEFT_MID, 165 , -35);
+	
+	
+	lv_obj_t * clock_img = lv_img_create(screen);
+	lv_img_set_src(clock_img, &clock_sig);
+	lv_obj_align(clock_img, LV_ALIGN_LEFT_MID, 248 , -35);
+	
+	lv_obj_t * distance_cron = lv_label_create(screen);
+	lv_obj_align(distance_cron, LV_ALIGN_LEFT_MID, 95 , 17);
+	lv_obj_set_style_text_color(distance_cron, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(distance_cron," %02d" , 12);
+	
+	lv_obj_t * km_unity;
+	km_unity = lv_label_create(screen);
+	lv_obj_align(km_unity, LV_ALIGN_LEFT_MID, 102 , 40);
+	lv_obj_set_style_text_font(km_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(km_unity, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(km_unity,"KM");
+	
+	lv_obj_t * vel_cron = lv_label_create(screen);
+	lv_obj_align(vel_cron, LV_ALIGN_LEFT_MID, 180 , 17);
+	lv_obj_set_style_text_color(vel_cron, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(vel_cron," %02d" , 22);
+	
+	lv_obj_t * vel_unity;
+	vel_unity = lv_label_create(screen);
+	lv_obj_align(vel_unity, LV_ALIGN_LEFT_MID, 180 , 40);
+	lv_obj_set_style_text_font(vel_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(vel_unity, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(vel_unity,"KM/h");
+	
+	lv_obj_t * time_cron = lv_label_create(screen);
+	lv_obj_align(time_cron, LV_ALIGN_LEFT_MID, 260 , 17);
+	lv_obj_set_style_text_font(time_cron, &lv_font_montserrat_20, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(time_cron, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(time_cron,"14:17");
+	
+	lv_obj_t * min_unity;
+	min_unity = lv_label_create(screen);
+	lv_obj_align(min_unity, LV_ALIGN_LEFT_MID, 266 , 40);
+	lv_obj_set_style_text_font(min_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(min_unity, lv_color_black(), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(min_unity,"MIN");
 	
 	// Buttons of bottom
 	
@@ -499,7 +537,7 @@ void lv_screen_3(lv_obj_t * screen) {
 	lv_obj_align(label_screen, LV_ALIGN_TOP_MID, 0 , 10);
 	lv_obj_set_style_text_font(label_screen, &lv_font_montserrat_16, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(label_screen, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(label_screen,"Settings");
+	lv_label_set_text_fmt(label_screen,LV_SYMBOL_SETTINGS " Settings");
 	
 	clock_screen3 = lv_label_create(screen);
 	lv_obj_align(clock_screen3, LV_ALIGN_TOP_RIGHT, -5 , 12);
