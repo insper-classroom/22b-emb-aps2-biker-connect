@@ -2291,7 +2291,16 @@
     <Compile Include="src\icons\acce.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\icons\average.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\icons\button2.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\clock.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\icons\distance.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\icons\logo.c">

@@ -112,6 +112,9 @@ LV_IMG_DECLARE(today);
 LV_IMG_DECLARE(acce);
 LV_IMG_DECLARE(vmedia);
 LV_IMG_DECLARE(button2);
+LV_IMG_DECLARE(average);
+LV_IMG_DECLARE(distance);
+LV_IMG_DECLARE(clock);
 
 static lv_obj_t * scr1;  // screen 1
 static lv_obj_t * scr2;  // screen 2
@@ -428,6 +431,18 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_label_set_text_fmt(labelBtn5,LV_SYMBOL_STOP);
 	lv_obj_center(labelBtn5);
 	
+// 	lv_obj_t * dist_img = lv_img_create(screen);
+// 	lv_img_set_src(dist_img, &distance);
+// 	lv_obj_align(dist_img, LV_ALIGN_LEFT_MID, 45 , 20);
+// 	
+// 	lv_obj_t * avg_img = lv_img_create(screen);
+// 	lv_img_set_src(avg_img, &average);
+// 	lv_obj_align(avg_img, LV_ALIGN_LEFT_MID, 95 , 20);
+// 	
+// 	
+// 	lv_obj_t * clock_img = lv_img_create(screen);
+// 	lv_img_set_src(clock_img, &clock);
+// 	lv_obj_align(clock_img, LV_ALIGN_LEFT_MID, 155 , 20);
 	
 	// Buttons of bottom
 	

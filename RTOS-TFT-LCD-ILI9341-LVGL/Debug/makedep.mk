@@ -624,7 +624,13 @@ src\ASF\thirdparty\lvgl8\tests\unity\unity_support.c
 
 src\icons\acce.c
 
+src\icons\average.c
+
 src\icons\button2.c
+
+src\icons\clock.c
+
+src\icons\distance.c
 
 src\icons\logo.c
 
