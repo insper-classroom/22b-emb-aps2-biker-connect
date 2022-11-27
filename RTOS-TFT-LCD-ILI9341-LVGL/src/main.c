@@ -16,6 +16,7 @@ SemaphoreHandle_t xSemaphoreScreen1;
 SemaphoreHandle_t xSemaphoreScreen2;
 SemaphoreHandle_t xSemaphoreScreen3;
 SemaphoreHandle_t xSemaphoreRTC;
+QueueHandle_t xQueueCronometro;
 
 
 typedef struct  {
@@ -132,17 +133,8 @@ lv_obj_t * actual_distance;
 lv_obj_t * clock_screen1;
 lv_obj_t * clock_screen2;
 lv_obj_t * clock_screen3;
+lv_obj_t * time_cron;
 
-static void event_handler(lv_event_t * e) {
-	lv_event_code_t code = lv_event_get_code(e);
-
-	if(code == LV_EVENT_CLICKED) {
-		LV_LOG_USER("Clicked");
-	}
-	else if(code == LV_EVENT_VALUE_CHANGED) {
-		LV_LOG_USER("Toggled");
-	}
-}
 
 
 static void homescreen_handler(lv_event_t * e) {
@@ -189,9 +181,13 @@ static void playpause_handler(lv_event_t * e) {
 	if(code == LV_EVENT_CLICKED) {
 		if (state){
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
+			int value = 1;
+			xQueueSend(xQueueCronometro,&value,0);
 		}
 		else{
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PAUSE);
+			int value = 2;
+			xQueueSend(xQueueCronometro,&value,0);
 		}
 		 state = !state;
 	}
@@ -202,9 +198,9 @@ static void stop_handler(lv_event_t * e) {
 	char *c;
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
-		c = lv_label_get_text(inst_speed);
-		temp = atoi(c);
-		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
+		lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
+		int value = 0;
+		xQueueSend(xQueueCronometro,&value,0);
 	}
 }
 
@@ -475,20 +471,20 @@ void lv_screen_2(lv_obj_t * screen) {
 	
 	lv_obj_t * vel_unity;
 	vel_unity = lv_label_create(screen);
-	lv_obj_align(vel_unity, LV_ALIGN_LEFT_MID, 180 , 40);
+	lv_obj_align(vel_unity, LV_ALIGN_LEFT_MID, 182 , 40);
 	lv_obj_set_style_text_font(vel_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(vel_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(vel_unity,"KM/h");
 	
-	lv_obj_t * time_cron = lv_label_create(screen);
-	lv_obj_align(time_cron, LV_ALIGN_LEFT_MID, 260 , 17);
+	time_cron = lv_label_create(screen);
+	lv_obj_align(time_cron, LV_ALIGN_LEFT_MID, 260 , 20);
 	lv_obj_set_style_text_font(time_cron, &lv_font_montserrat_20, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(time_cron, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(time_cron,"14:17");
+	lv_label_set_text_fmt(time_cron,"00:00");
 	
 	lv_obj_t * min_unity;
 	min_unity = lv_label_create(screen);
-	lv_obj_align(min_unity, LV_ALIGN_LEFT_MID, 266 , 40);
+	lv_obj_align(min_unity, LV_ALIGN_LEFT_MID, 270 , 40);
 	lv_obj_set_style_text_font(min_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(min_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(min_unity,"MIN");
@@ -713,6 +709,7 @@ static void task_change_screen(void *pvParameters) {
 static void task_rtc(void *pvParameters) {
 	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
 	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
+	int value = 0 ,min = 0,sec = 0;
 	for(;;) {
 		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
 			uint32_t current_hour, current_min, current_sec;
@@ -720,6 +717,19 @@ static void task_rtc(void *pvParameters) {
 			lv_label_set_text_fmt(clock_screen1, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen2, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen3, "%02d:%02d:%02d", current_hour, current_min, current_sec);
+			if (value == 2){
+				sec++;
+				min = sec  / 60;
+				lv_label_set_text_fmt(time_cron, "%02d:%02d", min, sec % 60);
+			}
+			
+		}
+		if (xQueueReceive(xQueueCronometro,&value,0)){
+			if (!value){
+				min = 0;
+				sec = 0;
+				lv_label_set_text_fmt(time_cron, "%02d:%02d", 0, 0);
+			}
 		}
 	}
 }
@@ -819,6 +829,7 @@ int main(void) {
 	xSemaphoreScreen2 = xSemaphoreCreateBinary();
 	xSemaphoreScreen3 = xSemaphoreCreateBinary();
 	xSemaphoreRTC = xSemaphoreCreateBinary();
+	xQueueCronometro = xQueueCreate(2, sizeof(int));
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
