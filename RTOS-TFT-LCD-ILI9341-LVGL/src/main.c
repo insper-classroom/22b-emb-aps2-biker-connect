@@ -10,6 +10,7 @@
 #include "touch/touch.h"
 #include "background.h"
 #include "wheel.h"
+#include "string.h"
 
 #define PI 3.14
 
@@ -25,6 +26,7 @@ SemaphoreHandle_t xSemaphoreScreen3;
 SemaphoreHandle_t xSemaphoreRTC;
 QueueHandle_t xQueueCronometro;
 QueueHandle_t xQueuedt;
+QueueHandle_t xQueueRaio;
 
 
 typedef struct  {
@@ -63,8 +65,8 @@ static lv_indev_drv_t indev_drv;
 #define TASK_CHANGE_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
 #define TASK_CHANGE_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
-#define TASK_RTC_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
-#define TASK_RTC_STACK_PRIORITY            (tskIDLE_PRIORITY)
+#define TASK_UPDATE_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
+#define TASK_UPDATE_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 #define TASK_SPEED_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
 #define TASK_SPEED_STACK_PRIORITY            (tskIDLE_PRIORITY)
@@ -73,8 +75,8 @@ static lv_indev_drv_t indev_drv;
 #define TASK_SIMULATOR_STACK_PRIORITY (tskIDLE_PRIORITY)
 
 #define RAIO 0.508/2
-#define VEL_MAX_KMH  5.0f
-#define VEL_MIN_KMH  0.5f
+#define VEL_MAX_KMH  20.0f
+#define VEL_MIN_KMH  5.0f
 #define RAMP 
 
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,  signed char *pcTaskName);
@@ -159,6 +161,9 @@ lv_obj_t * clock_screen2;
 lv_obj_t * clock_screen3;
 lv_obj_t * time_cron;
 lv_obj_t * acce_indication;
+lv_obj_t * distance_cron;
+lv_obj_t * vel_cron;
+lv_obj_t * bike_wheel;
 
 static void homescreen_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
@@ -175,9 +180,6 @@ static void routescreen_handler(lv_event_t * e) {
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
 		xSemaphoreGive(xSemaphoreScreen2);
-// 		c = lv_label_get_text(inst_speed);
-// 		temp = atoi(c);
-// 		lv_label_set_text_fmt(inst_speed, "%02d", temp +2);
 	}
 }
 
@@ -187,9 +189,6 @@ static void configscreen_handler(lv_event_t * e) {
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
 		xSemaphoreGive(xSemaphoreScreen3);
-// 		c = lv_label_get_text(inst_speed);
-// 		temp = atoi(c);
-// 		lv_label_set_text_fmt(inst_speed, "%02d", temp +1);
 	}
 }
 
@@ -226,12 +225,47 @@ static void stop_handler(lv_event_t * e) {
 
 static void roller_handler(lv_event_t * e)
 {
+	int ok;
+	volatile float radius_int;
 	lv_event_code_t code = lv_event_get_code(e);
 	lv_obj_t * obj = lv_event_get_target(e);
 	if(code == LV_EVENT_VALUE_CHANGED) {
-		char buf[32];
+		char buf[10];
 		lv_roller_get_selected_str(obj, buf, sizeof(buf));
-		LV_LOG_USER("Selected month: %s\n", buf);
+		if (buf[1]=='6'){
+			radius_int = 0.4064 / 2;
+			ok=  200;
+		}
+		if (buf[1]=='8'){
+			radius_int = 0.4572 / 2;
+			ok =  220;
+		}
+		if (buf[1]=='0' && buf[0]=='2'){
+			radius_int = 0.508 / 2;
+			ok =  240;
+		}
+		if (buf[1]=='4'){
+			radius_int = 0.6096 / 2;
+			ok =  260;
+		}
+		if (buf[1]=='4'){
+			radius_int = 0.6096 / 2;
+			ok= 260;
+		}
+		if (buf[1]=='6'){
+			radius_int = 0.6604 / 2;
+			ok= 280;
+		}
+		if (buf[1]=='7'){
+			radius_int = 0.6985 / 2;
+			ok= 300;
+		}
+		if (buf[1]=='0' && buf[0]=='7'){
+			radius_int = 0.7366 / 2;
+			ok= 320;
+		}
+		xQueueSend(xQueueRaio,&radius_int,0);
+		lv_img_set_zoom(bike_wheel, ok);
 	}
 }
 
@@ -263,7 +297,7 @@ void lv_screen_1(lv_obj_t * screen) {
 	//Main topics of screen
 	lv_obj_t * animimg0 = lv_animimg_create(screen);
 	lv_obj_align(animimg0, LV_ALIGN_LEFT_MID, 30, -16);
-	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 117);
+	lv_animimg_set_src(animimg0, (lv_img_dsc_t **) anim_imgs, 116);
 	lv_animimg_set_duration(animimg0, 1000);
 	lv_animimg_set_repeat_count(animimg0, LV_ANIM_REPEAT_INFINITE);
 	lv_animimg_start(animimg0);
@@ -474,22 +508,22 @@ void lv_screen_2(lv_obj_t * screen) {
 	lv_img_set_src(clock_img, &clock_sig);
 	lv_obj_align(clock_img, LV_ALIGN_LEFT_MID, 248 , -35);
 	
-	lv_obj_t * distance_cron = lv_label_create(screen);
+	distance_cron = lv_label_create(screen);
 	lv_obj_align(distance_cron, LV_ALIGN_LEFT_MID, 95 , 17);
 	lv_obj_set_style_text_color(distance_cron, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(distance_cron," %02d" , 12);
+	lv_label_set_text_fmt(distance_cron," %02d" , 0);
 	
 	lv_obj_t * km_unity;
 	km_unity = lv_label_create(screen);
-	lv_obj_align(km_unity, LV_ALIGN_LEFT_MID, 102 , 40);
+	lv_obj_align(km_unity, LV_ALIGN_LEFT_MID, 105 , 40);
 	lv_obj_set_style_text_font(km_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(km_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(km_unity,"KM");
 	
-	lv_obj_t * vel_cron = lv_label_create(screen);
-	lv_obj_align(vel_cron, LV_ALIGN_LEFT_MID, 180 , 17);
+	vel_cron = lv_label_create(screen);
+	lv_obj_align(vel_cron, LV_ALIGN_LEFT_MID, 184 , 17);
 	lv_obj_set_style_text_color(vel_cron, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(vel_cron," %02d" , 22);
+	lv_label_set_text_fmt(vel_cron," %02d" , 0);
 	
 	lv_obj_t * vel_unity;
 	vel_unity = lv_label_create(screen);
@@ -600,26 +634,22 @@ void lv_screen_3(lv_obj_t * screen) {
 	
 	lv_obj_t * roller1 = lv_roller_create(screen);
 	lv_roller_set_options(roller1,
-	"21''\n"
-	"22''\n"
-	"23''\n"
-	"24''\n"
-	"25''\n"
-	"26''",
+	"16.0''\n"
+	"18.0''\n"
+	"20.0''\n"
+	"24.0''\n"
+	"26.0''\n"
+	"27.5''\n"
+	"700c",
 	LV_ROLLER_MODE_INFINITE);
 
 	lv_roller_set_visible_row_count(roller1, 4);
 	lv_obj_set_size(roller1,120,120);
 	lv_obj_align(roller1, LV_ALIGN_RIGHT_MID, -55, -13);
 	lv_obj_add_event_cb(roller1, roller_handler, LV_EVENT_ALL, NULL);
+
 	
-	lv_obj_t * radius = lv_label_create(screen);
-	lv_obj_align(radius, LV_ALIGN_LEFT_MID, 35 , -65);
-	lv_obj_set_style_text_font(radius, &lv_font_montserrat_14, LV_STATE_DEFAULT);
-	lv_obj_set_style_text_color(radius, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(radius,"Diameter");
-	
-	lv_obj_t * bike_wheel = lv_img_create(screen);
+	bike_wheel = lv_img_create(screen);
 	lv_img_set_src(bike_wheel, &t_1);
 	lv_obj_align(bike_wheel,  LV_ALIGN_LEFT_MID, 30, -16);
 	
@@ -766,10 +796,10 @@ static void task_simulador(void *pvParameters) {
 		pio_set(PIOC, PIO_PC31);
 		if (ramp_up) {
 			//printf("[SIMU] ACELERANDO: %d \n", (int) (10*vel));
-			vel += 0.5;
+			vel += 2;
 			} else {
 			//printf("[SIMU] DESACELERANDO: %d \n",  (int) (10*vel));
-			vel -= 0.5;
+			vel -= 2;
 		}
 		if (vel >= VEL_MAX_KMH)
 		ramp_up = 0;
@@ -803,37 +833,7 @@ static void task_lcd(void *pvParameters) {
 }
 
 static void task_change_screen(void *pvParameters) {
-	io_init();
-	RTT_init(1000,0,0);
-	int dt=10;
-	double vel_antiga = 0;
-	int N_fixo = 0;
 	for (;;)  {
-		if (xQueueReceive(xQueuedt,&dt,0)){
-			N_fixo++;
-			double total_distance = 2*PI*0.254*N_fixo  / 100;
-			int total_distance1 = 10*( total_distance - (int) total_distance);
-			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
-			int tempo = rtt_read_timer_value(RTT);
-  			double f = (double) 10000 / tempo;
-  			double v = 2*PI*f*0.254;
-			  
- 			RTT_init(1000,0,0);
- 			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
-			if (v  > vel_antiga){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);	
-			}
-			else if( vel_antiga > v){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
-			}
-			else{
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
-			}
-			vel_antiga = v;
-		}
 		if (xSemaphoreTake(xSemaphoreScreen1,0)){
 			lv_scr_load(scr1);
 		}
@@ -846,11 +846,57 @@ static void task_change_screen(void *pvParameters) {
 	}
 }
 
-static void task_rtc(void *pvParameters) {
+static void task_update(void *pvParameters) {
 	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
 	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
 	int value = 0 ,min = 0,sec = 0;
+	
+	io_init();
+	RTT_init(1000,0,0);
+	float raio = 0.254;
+	float raio_buf;
+	int dt=10;
+	double vel_antiga = 0;
+	int N_fixo = 0;
+	int N_variavel = 0;
+	double total_distance_cron;
 	for(;;) {
+		if (xQueueReceive(xQueueRaio,&raio_buf,0)){
+			raio = raio_buf;
+		}
+		if (xQueueReceive(xQueuedt,&dt,0)){
+			if (value == 2){
+				N_variavel++;
+				total_distance_cron = 2*PI*raio*N_variavel  / 100;
+				int total_distance_cron1 = 10*( total_distance_cron - (int) total_distance_cron);
+				lv_label_set_text_fmt(distance_cron," %d.%d" , (int) total_distance_cron, total_distance_cron1);
+			}
+			
+			N_fixo++;
+			double total_distance = 2*PI*raio*N_fixo  / 100;
+			int total_distance1 = 10*( total_distance - (int) total_distance);
+			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
+			int tempo = rtt_read_timer_value(RTT);
+			double f = (double) 10000 / tempo;
+			double v = 2*PI*f*0.254;
+			
+			RTT_init(1000,0,0);
+			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
+			if (v  > vel_antiga){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
+			}
+			else if( vel_antiga > v){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
+			}
+			else{
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
+			}
+			vel_antiga = v;
+		}
+		
 		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
 			uint32_t current_hour, current_min, current_sec;
 			rtc_get_time(RTC, &current_hour, &current_min, &current_sec);
@@ -861,7 +907,9 @@ static void task_rtc(void *pvParameters) {
 			if (value == 2){
 				sec++;
 				min = sec  / 60;
+				double vel_cron_med =  (double) (total_distance_cron*100*3.6)/sec;
 				lv_label_set_text_fmt(time_cron, "%02d:%02d", min, sec % 60);
+				lv_label_set_text_fmt(vel_cron, "%02d", (int) vel_cron_med);
 			}
 			
 		}
@@ -869,7 +917,10 @@ static void task_rtc(void *pvParameters) {
 			if (!value){
 				min = 0;
 				sec = 0;
+				N_variavel = 0;
 				lv_label_set_text_fmt(time_cron, "%02d:%02d", 0, 0);
+				lv_label_set_text_fmt(vel_cron, "%02d", 0);
+				lv_label_set_text_fmt(distance_cron, "%02d",0);
 			}
 		}
 	}
@@ -973,6 +1024,7 @@ int main(void) {
 	xSemaphoreRTC = xSemaphoreCreateBinary();
 	xQueueCronometro = xQueueCreate(2, sizeof(int));
 	xQueuedt = xQueueCreate(100, sizeof(int));
+	xQueueRaio = xQueueCreate(2, sizeof(float));
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
@@ -982,7 +1034,7 @@ int main(void) {
 		printf("Failed to create Change Lcd task\r\n");
 	}
 	
-	if (xTaskCreate(task_rtc, "rtc", TASK_RTC_STACK_SIZE, NULL, TASK_RTC_STACK_PRIORITY, NULL) != pdPASS) {
+	if (xTaskCreate(task_update, "update", TASK_UPDATE_STACK_SIZE, NULL, TASK_UPDATE_STACK_PRIORITY, NULL) != pdPASS) {
 		printf("Failed to create rtc task\r\n");
 	}
 	

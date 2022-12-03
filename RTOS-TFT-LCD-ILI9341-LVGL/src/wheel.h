@@ -202,7 +202,6 @@ static const lv_img_dsc_t * anim_imgs[120] = {
 	&t_70,
 	&t_71,
 	&t_72,
-	&t_73,
 	&t_74,
 	&t_75,
 	&t_76,
