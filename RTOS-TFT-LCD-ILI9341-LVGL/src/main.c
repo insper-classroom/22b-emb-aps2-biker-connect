@@ -124,9 +124,8 @@ void RTC_Handler(void) {
 
 void sensor_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	int dt = rtt_read_timer_value(RTT);
-	xQueueSendFromISR(xQueuedt,&dt,&xHigherPriorityTaskWoken);
-	RTT_init(1000,0,0);
+	int t = 1;
+	xQueueSendFromISR(xQueuedt,&t,&xHigherPriorityTaskWoken);
 }
 
 /************************************************************************/
@@ -310,13 +309,13 @@ void lv_screen_1(lv_obj_t * screen) {
 	lv_obj_align(inst_speed, LV_ALIGN_RIGHT_MID, -55 , -50);
 	lv_obj_set_style_text_font(inst_speed, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(inst_speed, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(inst_speed," %02d" , 23);
+	lv_label_set_text_fmt(inst_speed," %02d" , 0);
 	
 	actual_distance = lv_label_create(screen);
 	lv_obj_align(actual_distance, LV_ALIGN_RIGHT_MID, -55 , 20);
 	lv_obj_set_style_text_font(actual_distance, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(actual_distance, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(actual_distance," %02d" , 35);
+	lv_label_set_text_fmt(actual_distance," %02d" , 00);
 	
 	lv_obj_t * km_h_unity = lv_label_create(screen);
 	lv_obj_align(km_h_unity, LV_ALIGN_RIGHT_MID, -15 , -50);
@@ -705,7 +704,10 @@ void io_init(void) {
 
 	pmc_enable_periph_clk(SENSOR_PIO_ID);
 
-	pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
+	//pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
+	pio_set_input(SENSOR_PIO, SENSOR_IDX_MASK, PIO_DEFAULT);
+		
+	pio_pull_up(SENSOR_PIO, SENSOR_IDX_MASK, 0);
 
 
 	pio_handler_set(SENSOR_PIO, SENSOR_PIO_ID, SENSOR_IDX_MASK, PIO_IT_FALL_EDGE,
@@ -763,10 +765,10 @@ static void task_simulador(void *pvParameters) {
 		delay_ms(1);
 		pio_set(PIOC, PIO_PC31);
 		if (ramp_up) {
-			printf("[SIMU] ACELERANDO: %d \n", (int) (10*vel));
+			//printf("[SIMU] ACELERANDO: %d \n", (int) (10*vel));
 			vel += 0.5;
 			} else {
-			printf("[SIMU] DESACELERANDO: %d \n",  (int) (10*vel));
+			//printf("[SIMU] DESACELERANDO: %d \n",  (int) (10*vel));
 			vel -= 0.5;
 		}
 		if (vel >= VEL_MAX_KMH)
@@ -777,7 +779,7 @@ static void task_simulador(void *pvParameters) {
 		f = kmh_to_hz(vel, RAIO);
 		int t = 965*(1.0/f); //UTILIZADO 965 como multiplicador ao invés de 1000
 		//para compensar o atraso gerado pelo Escalonador do freeRTOS
-		//delay_ms(t);
+		delay_ms(t);
 	}
 }
 
@@ -792,32 +794,53 @@ static void task_lcd(void *pvParameters) {
 	lv_scr_load(scr1);
 
 	for (;;)  {
-		xSemaphoreTake( xMutexLVGL, portMAX_DELAY );
+		xSemaphoreTake( xMutexLVGL, portMAX_DELAY);
 		lv_tick_inc(50);
 		lv_task_handler();
-		vTaskDelay(50);
 		xSemaphoreGive( xMutexLVGL);
+		vTaskDelay(50);
 	}
 }
 
 static void task_change_screen(void *pvParameters) {
 	io_init();
 	RTT_init(1000,0,0);
-	int dt;
+	int dt=10;
+	double vel_antiga = 0;
+	int N_fixo = 0;
 	for (;;)  {
 		if (xQueueReceive(xQueuedt,&dt,0)){
-			printf("Entrei uma vez %d",dt);
-			float f = (float) 1000 / dt;
-			float v = 2*PI*f*0.254;
-			//lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
+			N_fixo++;
+			double total_distance = 2*PI*0.254*N_fixo  / 100;
+			int total_distance1 = 10*( total_distance - (int) total_distance);
+			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
+			int tempo = rtt_read_timer_value(RTT);
+  			double f = (double) 10000 / tempo;
+  			double v = 2*PI*f*0.254;
+			  
+ 			RTT_init(1000,0,0);
+ 			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
+			if (v  > vel_antiga){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);	
+			}
+			else if( vel_antiga > v){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
+			}
+			else{
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
+			}
+			vel_antiga = v;
 		}
-		if (xSemaphoreTake(xSemaphoreScreen1,1000)){
+		if (xSemaphoreTake(xSemaphoreScreen1,0)){
 			lv_scr_load(scr1);
 		}
-		if (xSemaphoreTake(xSemaphoreScreen2,1000)){
+		if (xSemaphoreTake(xSemaphoreScreen2,0)){
 			lv_scr_load(scr2);
 		}
-		if (xSemaphoreTake(xSemaphoreScreen3,1000)){
+		if (xSemaphoreTake(xSemaphoreScreen3,0)){
 			lv_scr_load(scr3);
 		}
 	}
@@ -827,7 +850,6 @@ static void task_rtc(void *pvParameters) {
 	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
 	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
 	int value = 0 ,min = 0,sec = 0;
-	int t = 0;
 	for(;;) {
 		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
 			uint32_t current_hour, current_min, current_sec;
@@ -835,22 +857,7 @@ static void task_rtc(void *pvParameters) {
 			lv_label_set_text_fmt(clock_screen1, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen2, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen3, "%02d:%02d:%02d", current_hour, current_min, current_sec);
-			if (t==0){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
-				t=1;
-			}
-			else if (t == 1){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
-				t = 2;
-				
-			}
-			else{
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
-				t = 0;
-			}
+	
 			if (value == 2){
 				sec++;
 				min = sec  / 60;
@@ -965,7 +972,7 @@ int main(void) {
 	xSemaphoreScreen3 = xSemaphoreCreateBinary();
 	xSemaphoreRTC = xSemaphoreCreateBinary();
 	xQueueCronometro = xQueueCreate(2, sizeof(int));
-	xQueuedt = xQueueCreate(10, sizeof(int));
+	xQueuedt = xQueueCreate(100, sizeof(int));
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
@@ -978,10 +985,11 @@ int main(void) {
 	if (xTaskCreate(task_rtc, "rtc", TASK_RTC_STACK_SIZE, NULL, TASK_RTC_STACK_PRIORITY, NULL) != pdPASS) {
 		printf("Failed to create rtc task\r\n");
 	}
-// 	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
-// 		printf("Failed to create simul task\r\n");
-// 	}
-// 	
+	
+	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create simul task\r\n");
+	}
+ 	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
 
