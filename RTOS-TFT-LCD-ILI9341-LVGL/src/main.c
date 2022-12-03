@@ -11,11 +11,20 @@
 #include "background.h"
 #include "wheel.h"
 
+#define PI 3.14
 
+#define SENSOR_PIO PIOA
+#define SENSOR_PIO_ID ID_PIOA
+#define SENSOR_IDX 19
+#define SENSOR_IDX_MASK (1u << SENSOR_IDX)
+
+SemaphoreHandle_t xMutexLVGL;
 SemaphoreHandle_t xSemaphoreScreen1;
 SemaphoreHandle_t xSemaphoreScreen2;
 SemaphoreHandle_t xSemaphoreScreen3;
 SemaphoreHandle_t xSemaphoreRTC;
+QueueHandle_t xQueueCronometro;
+QueueHandle_t xQueuedt;
 
 
 typedef struct  {
@@ -51,17 +60,29 @@ static lv_indev_drv_t indev_drv;
 #define TASK_LCD_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
 #define TASK_LCD_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
-#define TASK_CHANGE_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_CHANGE_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
 #define TASK_CHANGE_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
-#define TASK_RTC_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_RTC_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
 #define TASK_RTC_STACK_PRIORITY            (tskIDLE_PRIORITY)
+
+#define TASK_SPEED_STACK_SIZE                (1024/sizeof(portSTACK_TYPE))
+#define TASK_SPEED_STACK_PRIORITY            (tskIDLE_PRIORITY)
+
+#define TASK_SIMULATOR_STACK_SIZE (1024 / sizeof(portSTACK_TYPE))
+#define TASK_SIMULATOR_STACK_PRIORITY (tskIDLE_PRIORITY)
+
+#define RAIO 0.508/2
+#define VEL_MAX_KMH  5.0f
+#define VEL_MIN_KMH  0.5f
+#define RAMP 
 
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,  signed char *pcTaskName);
 extern void vApplicationIdleHook(void);
 extern void vApplicationTickHook(void);
 extern void vApplicationMallocFailedHook(void);
 extern void xPortSysTickHandler(void);
+static void RTT_init(float freqPrescale, uint32_t IrqNPulses, uint32_t rttIRQSource);
 
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask, signed char *pcTaskName) {
 	printf("stack overflow %x %s\r\n", pxTask, (portCHAR *)pcTaskName);
@@ -101,6 +122,11 @@ void RTC_Handler(void) {
 	rtc_clear_status(RTC, RTC_SCCR_TDERRCLR);
 }
 
+void sensor_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	int t = 1;
+	xQueueSendFromISR(xQueuedt,&t,&xHigherPriorityTaskWoken);
+}
 
 /************************************************************************/
 /* lvgl                                                                 */
@@ -110,7 +136,6 @@ LV_FONT_DECLARE(lv_font_montserrat_24);
 LV_FONT_DECLARE(lv_font_montserrat_20);
 LV_IMG_DECLARE(logo);
 LV_IMG_DECLARE(today);
-LV_IMG_DECLARE(acce);
 LV_IMG_DECLARE(vmedia);
 LV_IMG_DECLARE(button2);
 LV_IMG_DECLARE(average);
@@ -132,18 +157,8 @@ lv_obj_t * actual_distance;
 lv_obj_t * clock_screen1;
 lv_obj_t * clock_screen2;
 lv_obj_t * clock_screen3;
-
-static void event_handler(lv_event_t * e) {
-	lv_event_code_t code = lv_event_get_code(e);
-
-	if(code == LV_EVENT_CLICKED) {
-		LV_LOG_USER("Clicked");
-	}
-	else if(code == LV_EVENT_VALUE_CHANGED) {
-		LV_LOG_USER("Toggled");
-	}
-}
-
+lv_obj_t * time_cron;
+lv_obj_t * acce_indication;
 
 static void homescreen_handler(lv_event_t * e) {
 	lv_event_code_t code = lv_event_get_code(e);
@@ -151,9 +166,6 @@ static void homescreen_handler(lv_event_t * e) {
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
 		xSemaphoreGive(xSemaphoreScreen1);
-// 		c = lv_label_get_text(inst_speed);
-// 		temp = atoi(c);
-// 		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
 	}
 }
 
@@ -189,9 +201,13 @@ static void playpause_handler(lv_event_t * e) {
 	if(code == LV_EVENT_CLICKED) {
 		if (state){
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
+			int value = 1;
+			xQueueSend(xQueueCronometro,&value,0);
 		}
 		else{
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PAUSE);
+			int value = 2;
+			xQueueSend(xQueueCronometro,&value,0);
 		}
 		 state = !state;
 	}
@@ -202,9 +218,9 @@ static void stop_handler(lv_event_t * e) {
 	char *c;
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
-		c = lv_label_get_text(inst_speed);
-		temp = atoi(c);
-		lv_label_set_text_fmt(inst_speed, "%02d", temp -1);
+		lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
+		int value = 0;
+		xQueueSend(xQueueCronometro,&value,0);
 	}
 }
 
@@ -277,9 +293,11 @@ void lv_screen_1(lv_obj_t * screen) {
 	lv_obj_align(top_line, LV_ALIGN_TOP_MID, 0, 40);
 	
 	// Acceleration indication
-	lv_obj_t * acceleration = lv_img_create(screen);
-	lv_img_set_src(acceleration, &acce);
-	lv_obj_align(acceleration, LV_ALIGN_RIGHT_MID, -120, -50);
+	acce_indication = lv_label_create(screen);
+	lv_obj_align(acce_indication, LV_ALIGN_RIGHT_MID, -120, -50);
+	lv_obj_set_style_text_font(acce_indication, &lv_font_montserrat_48, LV_STATE_DEFAULT);
+	lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
+	lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
 	
 	// Diary distance
 	lv_obj_t * diary_distance = lv_img_create(screen);
@@ -291,13 +309,13 @@ void lv_screen_1(lv_obj_t * screen) {
 	lv_obj_align(inst_speed, LV_ALIGN_RIGHT_MID, -55 , -50);
 	lv_obj_set_style_text_font(inst_speed, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(inst_speed, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(inst_speed," %02d" , 23);
+	lv_label_set_text_fmt(inst_speed," %02d" , 0);
 	
 	actual_distance = lv_label_create(screen);
 	lv_obj_align(actual_distance, LV_ALIGN_RIGHT_MID, -55 , 20);
 	lv_obj_set_style_text_font(actual_distance, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(actual_distance, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(actual_distance," %02d" , 35);
+	lv_label_set_text_fmt(actual_distance," %02d" , 00);
 	
 	lv_obj_t * km_h_unity = lv_label_create(screen);
 	lv_obj_align(km_h_unity, LV_ALIGN_RIGHT_MID, -15 , -50);
@@ -475,20 +493,20 @@ void lv_screen_2(lv_obj_t * screen) {
 	
 	lv_obj_t * vel_unity;
 	vel_unity = lv_label_create(screen);
-	lv_obj_align(vel_unity, LV_ALIGN_LEFT_MID, 180 , 40);
+	lv_obj_align(vel_unity, LV_ALIGN_LEFT_MID, 182 , 40);
 	lv_obj_set_style_text_font(vel_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(vel_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(vel_unity,"KM/h");
 	
-	lv_obj_t * time_cron = lv_label_create(screen);
-	lv_obj_align(time_cron, LV_ALIGN_LEFT_MID, 260 , 17);
+	time_cron = lv_label_create(screen);
+	lv_obj_align(time_cron, LV_ALIGN_LEFT_MID, 260 , 20);
 	lv_obj_set_style_text_font(time_cron, &lv_font_montserrat_20, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(time_cron, lv_color_black(), LV_STATE_DEFAULT);
-	lv_label_set_text_fmt(time_cron,"14:17");
+	lv_label_set_text_fmt(time_cron,"00:00");
 	
 	lv_obj_t * min_unity;
 	min_unity = lv_label_create(screen);
-	lv_obj_align(min_unity, LV_ALIGN_LEFT_MID, 266 , 40);
+	lv_obj_align(min_unity, LV_ALIGN_LEFT_MID, 270 , 40);
 	lv_obj_set_style_text_font(min_unity, &lv_font_montserrat_14, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(min_unity, lv_color_black(), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(min_unity,"MIN");
@@ -654,6 +672,56 @@ void lv_screen_3(lv_obj_t * screen) {
 /************************************************************************/
 /* Init Functions                                                       */
 /************************************************************************/
+static void RTT_init(float freqPrescale, uint32_t IrqNPulses, uint32_t rttIRQSource) {
+
+	uint16_t pllPreScale = (int) (((float) 32768) / freqPrescale);
+	
+	rtt_sel_source(RTT, false);
+	rtt_init(RTT, pllPreScale);
+	
+	if (rttIRQSource & RTT_MR_ALMIEN) {
+		uint32_t ul_previous_time;
+		ul_previous_time = rtt_read_timer_value(RTT);
+		while (ul_previous_time == rtt_read_timer_value(RTT));
+		rtt_write_alarm_time(RTT, IrqNPulses+ul_previous_time);
+	}
+
+	/* config NVIC */
+	NVIC_DisableIRQ(RTT_IRQn);
+	NVIC_ClearPendingIRQ(RTT_IRQn);
+	NVIC_SetPriority(RTT_IRQn, 4);
+	NVIC_EnableIRQ(RTT_IRQn);
+
+	/* Enable RTT interrupt */
+	if (rttIRQSource & (RTT_MR_RTTINCIEN | RTT_MR_ALMIEN))
+	rtt_enable_interrupt(RTT, rttIRQSource);
+	else
+	rtt_disable_interrupt(RTT, RTT_MR_RTTINCIEN | RTT_MR_ALMIEN);
+	
+}
+
+void io_init(void) {
+
+	pmc_enable_periph_clk(SENSOR_PIO_ID);
+
+	//pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
+	pio_set_input(SENSOR_PIO, SENSOR_IDX_MASK, PIO_DEFAULT);
+		
+	pio_pull_up(SENSOR_PIO, SENSOR_IDX_MASK, 0);
+
+
+	pio_handler_set(SENSOR_PIO, SENSOR_PIO_ID, SENSOR_IDX_MASK, PIO_IT_FALL_EDGE,
+	sensor_callback);
+
+	pio_enable_interrupt(SENSOR_PIO, SENSOR_IDX_MASK);
+
+	pio_get_interrupt_status(SENSOR_PIO);
+
+
+	NVIC_EnableIRQ(SENSOR_PIO_ID);
+	NVIC_SetPriority(SENSOR_PIO_ID, 4);
+}
+
 void RTC_init(Rtc *rtc, uint32_t id_rtc, calendar t, uint32_t irq_type) {
 	/* Configura o PMC */
 	pmc_enable_periph_clk(ID_RTC);
@@ -678,6 +746,42 @@ void RTC_init(Rtc *rtc, uint32_t id_rtc, calendar t, uint32_t irq_type) {
 /************************************************************************/
 /* TASKS                                                                */
 /************************************************************************/
+float kmh_to_hz(float vel, float raio) {
+	float f = vel / (2*PI*raio*3.6);
+	return(f);
+}
+
+static void task_simulador(void *pvParameters) {
+
+	pmc_enable_periph_clk(ID_PIOC);
+	pio_set_output(PIOC, PIO_PC31, 1, 0, 0);
+
+	float vel = VEL_MAX_KMH;
+	float f;
+	int ramp_up = 1;
+
+	while(1){
+		pio_clear(PIOC, PIO_PC31);
+		delay_ms(1);
+		pio_set(PIOC, PIO_PC31);
+		if (ramp_up) {
+			//printf("[SIMU] ACELERANDO: %d \n", (int) (10*vel));
+			vel += 0.5;
+			} else {
+			//printf("[SIMU] DESACELERANDO: %d \n",  (int) (10*vel));
+			vel -= 0.5;
+		}
+		if (vel >= VEL_MAX_KMH)
+		ramp_up = 0;
+		else if (vel <= VEL_MIN_KMH)
+		ramp_up = 1;
+
+		f = kmh_to_hz(vel, RAIO);
+		int t = 965*(1.0/f); //UTILIZADO 965 como multiplicador ao invés de 1000
+		//para compensar o atraso gerado pelo Escalonador do freeRTOS
+		delay_ms(t);
+	}
+}
 
 static void task_lcd(void *pvParameters) {
 	int px, py;
@@ -690,21 +794,53 @@ static void task_lcd(void *pvParameters) {
 	lv_scr_load(scr1);
 
 	for (;;)  {
+		xSemaphoreTake( xMutexLVGL, portMAX_DELAY);
 		lv_tick_inc(50);
 		lv_task_handler();
+		xSemaphoreGive( xMutexLVGL);
 		vTaskDelay(50);
 	}
 }
 
 static void task_change_screen(void *pvParameters) {
+	io_init();
+	RTT_init(1000,0,0);
+	int dt=10;
+	double vel_antiga = 0;
+	int N_fixo = 0;
 	for (;;)  {
-		if (xSemaphoreTake(xSemaphoreScreen1,1000)){
+		if (xQueueReceive(xQueuedt,&dt,0)){
+			N_fixo++;
+			double total_distance = 2*PI*0.254*N_fixo  / 100;
+			int total_distance1 = 10*( total_distance - (int) total_distance);
+			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
+			int tempo = rtt_read_timer_value(RTT);
+  			double f = (double) 10000 / tempo;
+  			double v = 2*PI*f*0.254;
+			  
+ 			RTT_init(1000,0,0);
+ 			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
+			if (v  > vel_antiga){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);	
+			}
+			else if( vel_antiga > v){
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
+			}
+			else{
+				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
+				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
+			}
+			vel_antiga = v;
+		}
+		if (xSemaphoreTake(xSemaphoreScreen1,0)){
 			lv_scr_load(scr1);
 		}
-		if (xSemaphoreTake(xSemaphoreScreen2,1000)){
+		if (xSemaphoreTake(xSemaphoreScreen2,0)){
 			lv_scr_load(scr2);
 		}
-		if (xSemaphoreTake(xSemaphoreScreen3,1000)){
+		if (xSemaphoreTake(xSemaphoreScreen3,0)){
 			lv_scr_load(scr3);
 		}
 	}
@@ -713,6 +849,7 @@ static void task_change_screen(void *pvParameters) {
 static void task_rtc(void *pvParameters) {
 	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
 	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
+	int value = 0 ,min = 0,sec = 0;
 	for(;;) {
 		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
 			uint32_t current_hour, current_min, current_sec;
@@ -720,6 +857,20 @@ static void task_rtc(void *pvParameters) {
 			lv_label_set_text_fmt(clock_screen1, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen2, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen3, "%02d:%02d:%02d", current_hour, current_min, current_sec);
+	
+			if (value == 2){
+				sec++;
+				min = sec  / 60;
+				lv_label_set_text_fmt(time_cron, "%02d:%02d", min, sec % 60);
+			}
+			
+		}
+		if (xQueueReceive(xQueueCronometro,&value,0)){
+			if (!value){
+				min = 0;
+				sec = 0;
+				lv_label_set_text_fmt(time_cron, "%02d:%02d", 0, 0);
+			}
 		}
 	}
 }
@@ -815,10 +966,13 @@ int main(void) {
 	configure_touch();
 	configure_lvgl();
 	
+	xMutexLVGL = xSemaphoreCreateMutex();
 	xSemaphoreScreen1 = xSemaphoreCreateBinary();
 	xSemaphoreScreen2 = xSemaphoreCreateBinary();
 	xSemaphoreScreen3 = xSemaphoreCreateBinary();
 	xSemaphoreRTC = xSemaphoreCreateBinary();
+	xQueueCronometro = xQueueCreate(2, sizeof(int));
+	xQueuedt = xQueueCreate(100, sizeof(int));
 
 	/* Create task to control oled */
 	if (xTaskCreate(task_lcd, "LCD", TASK_LCD_STACK_SIZE, NULL, TASK_LCD_STACK_PRIORITY, NULL) != pdPASS) {
@@ -832,6 +986,10 @@ int main(void) {
 		printf("Failed to create rtc task\r\n");
 	}
 	
+	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create simul task\r\n");
+	}
+ 	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
 
