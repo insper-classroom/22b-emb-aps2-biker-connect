@@ -877,8 +877,8 @@ static void task_update(void *pvParameters) {
 			int total_distance1 = 10*( total_distance - (int) total_distance);
 			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
 			int tempo = rtt_read_timer_value(RTT);
-			double f = (double) 10000 / tempo;
-			double v = 2*PI*f*0.254;
+			double f = (double) 1000 / tempo;
+			double v = 2*PI*f*raio;
 			
 			RTT_init(1000,0,0);
 			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
@@ -1038,9 +1038,9 @@ int main(void) {
 		printf("Failed to create rtc task\r\n");
 	}
 	
-	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
-		printf("Failed to create simul task\r\n");
-	}
+// 	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
+// 		printf("Failed to create simul task\r\n");
+// 	}
  	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
