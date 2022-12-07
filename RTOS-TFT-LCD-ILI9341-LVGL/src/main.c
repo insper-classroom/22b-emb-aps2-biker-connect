@@ -11,13 +11,16 @@
 #include "background.h"
 #include "wheel.h"
 #include "string.h"
-
-#define PI 3.14
+#include "arm_math.h"
 
 #define SENSOR_PIO PIOA
 #define SENSOR_PIO_ID ID_PIOA
 #define SENSOR_IDX 19
 #define SENSOR_IDX_MASK (1u << SENSOR_IDX)
+
+#define RESET 0 
+#define PAUSE 1
+#define PLAY 2
 
 SemaphoreHandle_t xMutexLVGL;
 SemaphoreHandle_t xSemaphoreScreen1;
@@ -75,8 +78,8 @@ static lv_indev_drv_t indev_drv;
 #define TASK_SIMULATOR_STACK_PRIORITY (tskIDLE_PRIORITY)
 
 #define RAIO 0.508/2
-#define VEL_MAX_KMH  20.0f
-#define VEL_MIN_KMH  5.0f
+#define VEL_MAX_KMH  5.0f
+#define VEL_MIN_KMH  1.0f
 #define RAMP 
 
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,  signed char *pcTaskName);
@@ -126,8 +129,9 @@ void RTC_Handler(void) {
 
 void sensor_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-	int t = 1;
-	xQueueSendFromISR(xQueuedt,&t,&xHigherPriorityTaskWoken);
+	int dt = rtt_read_timer_value(RTT);
+	xQueueSendFromISR(xQueuedt,&dt,&xHigherPriorityTaskWoken);
+	RTT_init(1000,0,NULL);
 }
 
 /************************************************************************/
@@ -200,13 +204,13 @@ static void playpause_handler(lv_event_t * e) {
 	if(code == LV_EVENT_CLICKED) {
 		if (state){
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
-			int value = 1;
-			xQueueSend(xQueueCronometro,&value,0);
+			int rote_status = PAUSE;
+			xQueueSend(xQueueCronometro,&rote_status,0);
 		}
 		else{
 			lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PAUSE);
-			int value = 2;
-			xQueueSend(xQueueCronometro,&value,0);
+			int rote_status = PLAY;
+			xQueueSend(xQueueCronometro,&rote_status,0);
 		}
 		 state = !state;
 	}
@@ -218,54 +222,50 @@ static void stop_handler(lv_event_t * e) {
 	int temp;
 	if(code == LV_EVENT_CLICKED) {
 		lv_label_set_text_fmt(labelBtn4, LV_SYMBOL_PLAY);
-		int value = 0;
-		xQueueSend(xQueueCronometro,&value,0);
+		int rote_status = RESET;
+		xQueueSend(xQueueCronometro,&rote_status,0);
 	}
 }
 
 static void roller_handler(lv_event_t * e)
 {
-	int ok;
-	volatile float radius_int;
+	int zoom_bike;
+	volatile float radius_size;
 	lv_event_code_t code = lv_event_get_code(e);
 	lv_obj_t * obj = lv_event_get_target(e);
 	if(code == LV_EVENT_VALUE_CHANGED) {
 		char buf[10];
 		lv_roller_get_selected_str(obj, buf, sizeof(buf));
 		if (buf[1]=='6'){
-			radius_int = 0.4064 / 2;
-			ok=  200;
+			radius_size = 0.4064 / 2;
+			zoom_bike=  200;
 		}
 		if (buf[1]=='8'){
-			radius_int = 0.4572 / 2;
-			ok =  220;
+			radius_size = 0.4572 / 2;
+			zoom_bike =  220;
 		}
 		if (buf[1]=='0' && buf[0]=='2'){
-			radius_int = 0.508 / 2;
-			ok =  240;
+			radius_size = 0.508 / 2;
+			zoom_bike =  240;
 		}
 		if (buf[1]=='4'){
-			radius_int = 0.6096 / 2;
-			ok =  260;
-		}
-		if (buf[1]=='4'){
-			radius_int = 0.6096 / 2;
-			ok= 260;
+			radius_size = 0.6096 / 2;
+			zoom_bike= 260;
 		}
 		if (buf[1]=='6'){
-			radius_int = 0.6604 / 2;
-			ok= 280;
+			radius_size = 0.6604 / 2;
+			zoom_bike= 280;
 		}
 		if (buf[1]=='7'){
-			radius_int = 0.6985 / 2;
-			ok= 300;
+			radius_size = 0.6985 / 2;
+			zoom_bike= 300;
 		}
 		if (buf[1]=='0' && buf[0]=='7'){
-			radius_int = 0.7366 / 2;
-			ok= 320;
+			radius_size = 0.7366 / 2;
+			zoom_bike= 320;
 		}
-		xQueueSend(xQueueRaio,&radius_int,0);
-		lv_img_set_zoom(bike_wheel, ok);
+		xQueueSend(xQueueRaio,&radius_size,0);
+		lv_img_set_zoom(bike_wheel, zoom_bike);
 	}
 }
 
@@ -734,12 +734,9 @@ void io_init(void) {
 
 	pmc_enable_periph_clk(SENSOR_PIO_ID);
 
-	//pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
-	pio_set_input(SENSOR_PIO, SENSOR_IDX_MASK, PIO_DEFAULT);
-		
-	pio_pull_up(SENSOR_PIO, SENSOR_IDX_MASK, 0);
-
-
+	pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
+	pio_pull_up(SENSOR_PIO,SENSOR_IDX_MASK,0);
+	
 	pio_handler_set(SENSOR_PIO, SENSOR_PIO_ID, SENSOR_IDX_MASK, PIO_IT_FALL_EDGE,
 	sensor_callback);
 
@@ -781,12 +778,43 @@ float kmh_to_hz(float vel, float raio) {
 	return(f);
 }
 
+double update_distance_rote(double raio, int pulsos_trajeto){
+	double total_distance_cron = 2*PI*raio*pulsos_trajeto  / 100;
+	int total_distance_cron_ = 10*( total_distance_cron - (int) total_distance_cron);
+	lv_label_set_text_fmt(distance_cron," %d.%d" , (int) total_distance_cron, total_distance_cron_);
+	return total_distance_cron;
+}
+
+void update_total_distance(double raio, int pulsos_totais){
+	double total_distance = 2*PI*raio*pulsos_totais  / 100;
+	int total_distance1 = 10*( total_distance - (int) total_distance);
+	lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
+}
+void update_instantaneous_speed(double raio, int pulsos_totais, int dt){
+	static vel_antiga = 0;
+	double t = 0.0001*dt;
+	int v = (float) 2*PI*raio*3.6/t;
+	lv_label_set_text_fmt(inst_speed, "%02d",  v);
+	if (v  > vel_antiga){
+		lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
+		lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
+	}
+	else if( vel_antiga > v){
+		lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
+		lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
+	}
+	else{
+		lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
+		lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
+	}
+	vel_antiga = v;
+}
 static void task_simulador(void *pvParameters) {
 
 	pmc_enable_periph_clk(ID_PIOC);
 	pio_set_output(PIOC, PIO_PC31, 1, 0, 0);
 
-	float vel = VEL_MAX_KMH;
+	float vel = 5;
 	float f;
 	int ramp_up = 1;
 
@@ -796,14 +824,14 @@ static void task_simulador(void *pvParameters) {
 		pio_set(PIOC, PIO_PC31);
 		if (ramp_up) {
 			//printf("[SIMU] ACELERANDO: %d \n", (int) (10*vel));
-			vel += 2;
+			vel += 1;
 			} else {
 			//printf("[SIMU] DESACELERANDO: %d \n",  (int) (10*vel));
-			vel -= 2;
+			vel -= 1;
 		}
-		if (vel >= VEL_MAX_KMH)
+		if (vel >= 10)
 		ramp_up = 0;
-		else if (vel <= VEL_MIN_KMH)
+		else if (vel <= 3)
 		ramp_up = 1;
 
 		f = kmh_to_hz(vel, RAIO);
@@ -847,54 +875,28 @@ static void task_change_screen(void *pvParameters) {
 }
 
 static void task_update(void *pvParameters) {
-	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
-	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
-	int value = 0 ,min = 0,sec = 0;
-	
 	io_init();
-	RTT_init(1000,0,0);
+	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
+	RTT_init(1000,0,NULL);
+	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
+	int rote_status = 0 ,min = 0,sec = 0, pulsos_trajeto = 0, pulsos_totais = 0;
+	int dt;
+	double total_distance_cron;
 	float raio = 0.254;
 	float raio_buf;
-	int dt=10;
-	double vel_antiga = 0;
-	int N_fixo = 0;
-	int N_variavel = 0;
-	double total_distance_cron;
+	
 	for(;;) {
 		if (xQueueReceive(xQueueRaio,&raio_buf,0)){
 			raio = raio_buf;
 		}
 		if (xQueueReceive(xQueuedt,&dt,0)){
-			if (value == 2){
-				N_variavel++;
-				total_distance_cron = 2*PI*raio*N_variavel  / 100;
-				int total_distance_cron1 = 10*( total_distance_cron - (int) total_distance_cron);
-				lv_label_set_text_fmt(distance_cron," %d.%d" , (int) total_distance_cron, total_distance_cron1);
+			if (rote_status == PLAY){
+				pulsos_trajeto++;
+				total_distance_cron = update_distance_rote(raio, pulsos_trajeto);
 			}
-			
-			N_fixo++;
-			double total_distance = 2*PI*raio*N_fixo  / 100;
-			int total_distance1 = 10*( total_distance - (int) total_distance);
-			lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
-			int tempo = rtt_read_timer_value(RTT);
-			double f = (double) 1000 / tempo;
-			double v = 2*PI*f*raio;
-			
-			RTT_init(1000,0,0);
-			lv_label_set_text_fmt(inst_speed, "%02d", (int) v);
-			if (v  > vel_antiga){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
-			}
-			else if( vel_antiga > v){
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
-			}
-			else{
-				lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
-				lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
-			}
-			vel_antiga = v;
+			pulsos_totais++;
+			update_total_distance(raio, pulsos_totais);
+			update_instantaneous_speed(raio,pulsos_totais,dt);
 		}
 		
 		if (xSemaphoreTake(xSemaphoreRTC, 0)) {
@@ -904,7 +906,7 @@ static void task_update(void *pvParameters) {
 			lv_label_set_text_fmt(clock_screen2, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 			lv_label_set_text_fmt(clock_screen3, "%02d:%02d:%02d", current_hour, current_min, current_sec);
 	
-			if (value == 2){
+			if (rote_status == PLAY){
 				sec++;
 				min = sec  / 60;
 				double vel_cron_med =  (double) (total_distance_cron*100*3.6)/sec;
@@ -913,11 +915,11 @@ static void task_update(void *pvParameters) {
 			}
 			
 		}
-		if (xQueueReceive(xQueueCronometro,&value,0)){
-			if (!value){
+		if (xQueueReceive(xQueueCronometro,&rote_status,0)){
+			if (rote_status == RESET){
 				min = 0;
 				sec = 0;
-				N_variavel = 0;
+				pulsos_trajeto = 0;
 				lv_label_set_text_fmt(time_cron, "%02d:%02d", 0, 0);
 				lv_label_set_text_fmt(vel_cron, "%02d", 0);
 				lv_label_set_text_fmt(distance_cron, "%02d",0);
@@ -1038,10 +1040,10 @@ int main(void) {
 		printf("Failed to create rtc task\r\n");
 	}
 	
-// 	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
-// 		printf("Failed to create simul task\r\n");
-// 	}
- 	
+	if (xTaskCreate(task_simulador, "SIMUL", TASK_SIMULATOR_STACK_SIZE, NULL, TASK_SIMULATOR_STACK_PRIORITY, NULL) != pdPASS) {
+ 			printf("Failed to create simul task\r\n");
+ 	}
+ 	 	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
 
