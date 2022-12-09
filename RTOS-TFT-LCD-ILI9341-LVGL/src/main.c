@@ -18,9 +18,25 @@
 #define SENSOR_IDX 19
 #define SENSOR_IDX_MASK (1u << SENSOR_IDX)
 
+#define VERMELHO_PIO PIOD
+#define VERMELHO_PIO_ID ID_PIOD
+#define VERMELHO_IDX 20
+#define VERMELHO_IDX_MASK (1u << VERMELHO_IDX)
+
+#define VERDE_PIO PIOD
+#define VERDE_PIO_ID ID_PIOD
+#define VERDE_IDX 25
+#define VERDE_IDX_MASK (1u << VERDE_IDX)
+
+#define AZUL_PIO PIOB
+#define AZUL_PIO_ID ID_PIOB
+#define AZUL_IDX 0
+#define AZUL_IDX_MASK (1u << AZUL_IDX)
+
 #define RESET 0 
 #define PAUSE 1
 #define PLAY 2
+#define FATOR_CONVERSAO 0.921f  //Compensa atraso do RTOS
 
 SemaphoreHandle_t xMutexLVGL;
 SemaphoreHandle_t xSemaphoreScreen1;
@@ -130,6 +146,7 @@ void RTC_Handler(void) {
 void sensor_callback(void){
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	int dt = rtt_read_timer_value(RTT);
+	printf("rtt %d \n", dt);
 	xQueueSendFromISR(xQueuedt,&dt,&xHigherPriorityTaskWoken);
 	RTT_init(1000,0,NULL);
 }
@@ -328,7 +345,7 @@ void lv_screen_1(lv_obj_t * screen) {
 	
 	// Acceleration indication
 	acce_indication = lv_label_create(screen);
-	lv_obj_align(acce_indication, LV_ALIGN_RIGHT_MID, -120, -50);
+	lv_obj_align(acce_indication, LV_ALIGN_RIGHT_MID, -130, -50);
 	lv_obj_set_style_text_font(acce_indication, &lv_font_montserrat_48, LV_STATE_DEFAULT);
 	lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
 	lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
@@ -733,6 +750,13 @@ static void RTT_init(float freqPrescale, uint32_t IrqNPulses, uint32_t rttIRQSou
 void io_init(void) {
 
 	pmc_enable_periph_clk(SENSOR_PIO_ID);
+	pmc_enable_periph_clk(VERMELHO_PIO_ID);
+	pmc_enable_periph_clk(AZUL_PIO_ID);
+	pmc_enable_periph_clk(VERDE_PIO_ID);
+	
+	pio_configure(VERMELHO_PIO, PIO_OUTPUT_0, VERMELHO_IDX_MASK, PIO_DEFAULT);
+	pio_configure(VERDE_PIO, PIO_OUTPUT_0, VERDE_IDX_MASK, PIO_DEFAULT);
+	pio_configure(AZUL_PIO, PIO_OUTPUT_0, AZUL_IDX_MASK, PIO_DEFAULT);
 
 	pio_configure(SENSOR_PIO_ID, PIO_INPUT, SENSOR_IDX_MASK, PIO_DEFAULT);
 	pio_pull_up(SENSOR_PIO,SENSOR_IDX_MASK,0);
@@ -779,36 +803,49 @@ float kmh_to_hz(float vel, float raio) {
 }
 
 double update_distance_rote(double raio, int pulsos_trajeto){
-	double total_distance_cron = 2*PI*raio*pulsos_trajeto  / 100;
+	double total_distance_cron = 2*PI*raio*pulsos_trajeto  / 1000; //Convertendo de metro para Km
 	int total_distance_cron_ = 10*( total_distance_cron - (int) total_distance_cron);
 	lv_label_set_text_fmt(distance_cron," %d.%d" , (int) total_distance_cron, total_distance_cron_);
 	return total_distance_cron;
 }
 
 void update_total_distance(double raio, int pulsos_totais){
-	double total_distance = 2*PI*raio*pulsos_totais  / 100;
+	double total_distance = 2*PI*raio*pulsos_totais  / 1000; //Convertendo de metro para Km
 	int total_distance1 = 10*( total_distance - (int) total_distance);
 	lv_label_set_text_fmt(actual_distance," %d.%d" , (int) total_distance, total_distance1);
 }
+
 void update_instantaneous_speed(double raio, int pulsos_totais, int dt){
 	static vel_antiga = 0;
-	double t = 0.0001*dt;
-	int v = (float) 2*PI*raio*3.6/t;
-	lv_label_set_text_fmt(inst_speed, "%02d",  v);
+	double t = 0.001*dt;
+	
+	float v = (float) 2*PI*raio*3.6*FATOR_CONVERSAO / t;
+	lv_label_set_text_fmt(inst_speed, "%.1f",  v);
 	if (v  > vel_antiga){
 		lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
 		lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
+		pio_clear(VERMELHO_PIO, VERMELHO_IDX_MASK);
+		pio_set(VERDE_PIO, VERDE_IDX_MASK);
+		pio_clear(AZUL_PIO, AZUL_IDX_MASK);
+		
 	}
 	else if( vel_antiga > v){
 		lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
 		lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
+		pio_set(VERMELHO_PIO, VERMELHO_IDX_MASK);
+		pio_clear(VERDE_PIO, VERDE_IDX_MASK);
+		pio_clear(AZUL_PIO, AZUL_IDX_MASK);
 	}
 	else{
 		lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0x00, 0xff), LV_STATE_DEFAULT);
 		lv_label_set_text_fmt(acce_indication,LV_SYMBOL_MINUS);
+		pio_clear(VERMELHO_PIO, VERMELHO_IDX_MASK);
+		pio_clear(VERDE_PIO, VERDE_IDX_MASK);
+		pio_set(AZUL_PIO, AZUL_IDX_MASK);
 	}
 	vel_antiga = v;
 }
+
 static void task_simulador(void *pvParameters) {
 
 	pmc_enable_periph_clk(ID_PIOC);
@@ -876,7 +913,7 @@ static void task_change_screen(void *pvParameters) {
 
 static void task_update(void *pvParameters) {
 	io_init();
-	calendar rtc_initial = {2022, 11, 25, 0, 22, 37 ,0};
+	calendar rtc_initial = {2022, 12, 8, 0, 12, 37 ,0};
 	RTT_init(1000,0,NULL);
 	RTC_init(RTC, ID_RTC, rtc_initial, RTC_IER_SECEN);
 	int rote_status = 0 ,min = 0,sec = 0, pulsos_trajeto = 0, pulsos_totais = 0;
