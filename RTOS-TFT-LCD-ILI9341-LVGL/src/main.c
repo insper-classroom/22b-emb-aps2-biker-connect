@@ -37,6 +37,7 @@
 #define PAUSE 1
 #define PLAY 2
 #define FATOR_CONVERSAO 0.921f  //Compensa atraso do RTOS
+#define DELTA 0.001f
 
 SemaphoreHandle_t xMutexLVGL;
 SemaphoreHandle_t xSemaphoreScreen1;
@@ -127,7 +128,7 @@ void RTC_Handler(void) {
 	
 	/* Time or date alarm */
 	if ((ul_status & RTC_SR_ALARM) == RTC_SR_ALARM) {
-		// o cÛdigo para irq de alame vem aqui
+		// o c√≥digo para irq de alame vem aqui
 	}
 	
 	/* seccond tick */
@@ -821,7 +822,7 @@ void update_instantaneous_speed(double raio, int pulsos_totais, int dt){
 	
 	float v = (float) 2*PI*raio*3.6*FATOR_CONVERSAO / t;
 	lv_label_set_text_fmt(inst_speed, "%.1f",  v);
-	if (v  > vel_antiga){
+	if (v- vel_antiga  > DELTA){
 		lv_obj_set_style_text_color(acce_indication, lv_color_make(0x00, 0xff, 0x00), LV_STATE_DEFAULT);
 		lv_label_set_text_fmt(acce_indication,LV_SYMBOL_UP);
 		pio_clear(VERMELHO_PIO, VERMELHO_IDX_MASK);
@@ -829,7 +830,7 @@ void update_instantaneous_speed(double raio, int pulsos_totais, int dt){
 		pio_clear(AZUL_PIO, AZUL_IDX_MASK);
 		
 	}
-	else if( vel_antiga > v){
+	else if( vel_antiga - v > DELTA){
 		lv_obj_set_style_text_color(acce_indication, lv_color_make(0xff, 0x0, 0x00), LV_STATE_DEFAULT);
 		lv_label_set_text_fmt(acce_indication, LV_SYMBOL_DOWN);
 		pio_set(VERMELHO_PIO, VERMELHO_IDX_MASK);
@@ -872,7 +873,7 @@ static void task_simulador(void *pvParameters) {
 		ramp_up = 1;
 
 		f = kmh_to_hz(vel, RAIO);
-		int t = 965*(1.0/f); //UTILIZADO 965 como multiplicador ao invÈs de 1000
+		int t = 965*(1.0/f); //UTILIZADO 965 como multiplicador ao inv√©s de 1000
 		//para compensar o atraso gerado pelo Escalonador do freeRTOS
 		delay_ms(t);
 	}
@@ -946,7 +947,7 @@ static void task_update(void *pvParameters) {
 			if (rote_status == PLAY){
 				sec++;
 				min = sec  / 60;
-				double vel_cron_med =  (double) (total_distance_cron*100*3.6)/sec;
+				double vel_cron_med =  (double) (total_distance_cron) / (sec / 3600); // velocidade m√©dia em km/h
 				lv_label_set_text_fmt(time_cron, "%02d:%02d", min, sec % 60);
 				lv_label_set_text_fmt(vel_cron, "%02d", (int) vel_cron_med);
 			}
